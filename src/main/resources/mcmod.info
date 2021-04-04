@@ -1,0 +1,16 @@
+[
+{
+  "modid": "savesync",
+  "name": "Save Sync",
+  "description": "Attempts to sync world saves with GitHub.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["DarkOverLordCO"],
+  "credits": "The author.",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
