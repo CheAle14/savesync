@@ -3,10 +3,16 @@ buildscript {
         jcenter()
         mavenCentral()
         maven { url = "https://files.minecraftforge.net/maven" }
+		maven { url 'https://jitpack.io/' }
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
     }
+}
+allprojects {
+	repositories {
+		maven { url 'https://jitpack.io/' }
+	}
 }
 apply plugin: 'net.minecraftforge.gradle.forge'
 //Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
@@ -59,11 +65,11 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
     
-    // https://mvnrepository.com/artifact/org.kohsuke/github-api
-	compile group: 'org.kohsuke', name: 'github-api', version: '1.125'
 	// https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
 	compile group: 'org.eclipse.jgit', name: 'org.eclipse.jgit', version: '5.11.0.202103091610-r'
 
+
+	compile 'com.github.Querz:NBT:6.0'
     
 
 }
@@ -105,9 +111,10 @@ task fatJar(type: Jar) {
     with jar
 }
 task copyToLib(type: Copy) {
-    into "${buildDir}/deps"
+    into "${buildDir}/libs"
     from configurations.runtime
 }
+build.finalizedBy(copyToLib)
 
 
 

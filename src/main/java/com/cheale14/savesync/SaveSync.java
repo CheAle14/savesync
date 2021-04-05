@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.common.config.Config.Comment;
 import net.minecraftforge.common.config.Config.Name;
 import net.minecraftforge.common.config.Config.Type;
@@ -17,9 +18,16 @@ import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import net.minecraftforge.fml.common.eventhandler.Event.Result;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.querz.nbt.io.NBTSerializer;
+import net.querz.nbt.io.NBTUtil;
+import net.querz.nbt.io.NamedTag;
+import net.querz.nbt.io.SNBTUtil;
+import net.querz.nbt.tag.CompoundTag;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -50,11 +58,6 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
-import org.kohsuke.github.GHMyself;
-import org.kohsuke.github.GHRepository;
-import org.kohsuke.github.GitHub;
-import org.kohsuke.github.GitHubBuilder;
-import org.kohsuke.github.HttpException;
 
 @Mod(modid = SaveSync.MODID, name = SaveSync.NAME, version = SaveSync.VERSION)
 public class SaveSync
@@ -64,8 +67,6 @@ public class SaveSync
     public static final String VERSION = "0.1";
 
     public static Logger logger;
-    private static GitHub github;
-    public static GHRepository saveRepo;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
@@ -77,14 +78,16 @@ public class SaveSync
     @EventHandler
     public void init(FMLInitializationEvent event) throws NoWorkTreeException, InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException, SyncException
     {
+    	logger.info("Side: " + event.getSide());
         // some example code
     	logger.info("Repo: https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName);
-		LoadGithub();
+    	LoadGithub();
     }
     
     @EventHandler
     public void serverStart(FMLServerStartingEvent event) {
     	event.registerServerCommand(new SyncCommand());
+    	
     }
     
     @EventHandler
@@ -102,23 +105,12 @@ public class SaveSync
 		}
     }
     
-    
     public void LoadGithub() throws NoWorkTreeException, InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException, SyncException {
-    	github = new GitHubBuilder().withOAuthToken(SaveConfig.API_Key).build();
-    	try {
-	    	GHMyself user = github.getMyself();
-	    	logger.info("User: " + user.getName());
-	    	saveRepo = github.getRepository(SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName);
-    	} catch(HttpException ex) {
-    		if(ex.getMessage().contains("Bad credentials")) {
-    			Runtime rt = Runtime.getRuntime();
-    			String url = "https://github.com/settings/tokens/new";
-    			rt.exec("rundll32 url.dll,FileProtocolHandler " + url);
-    		}
-    		github = null;
-    		return;
-    	}
-		SyncDownload();
+    	if(SaveConfig.API_Key == null || "none".equalsIgnoreCase(SaveConfig.API_Key)) {
+			logger.warn("No API key confiured, not attempting sync things..");
+		} else {
+	    	SyncDownload();
+		}
     }
     
     private static String readFile(File file) throws FileNotFoundException {
@@ -209,7 +201,21 @@ public class SaveSync
     	return files;
     }
     
-    public void SyncClone(File to, String branch) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException {
+    public static void FixNBT(File worldFolder) throws IOException {
+    	File nbtFile = new File(worldFolder, "level.dat");
+    	NamedTag outer = NBTUtil.read(nbtFile);
+    	CompoundTag levelData = (CompoundTag) outer.getTag();
+    	CompoundTag Data = (CompoundTag) levelData.get("Data");
+    	Data.remove("Player");
+    	levelData.put("Data", Data);
+    	outer.setTag(levelData);
+    	File file = new File(worldFolder, "level_new.dat");
+    	logger.info("Writing new NBT data to " + file.getPath());
+    	NBTUtil.write(outer, file);
+    	Files.copy(file.toPath(), nbtFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+    
+    public void SyncClone(File to, String branch) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
     	if(!to.exists()) {
     		to.mkdir();
     	}
@@ -230,6 +236,7 @@ public class SaveSync
     			.call();
     		logger.info("Successfully cloned " + branch + " into " + to.getAbsolutePath());
     		git.close();
+    		FixNBT(to);
     	}
     }
     
@@ -259,6 +266,7 @@ public class SaveSync
     			.setCredentialsProvider(auth())
     			.setProgressMonitor(new SyncProgMonitor())
     			.call();
+    		FixNBT(world);
 		} catch(CheckoutConflictException e) {
 			git.close();
 			logger.warn("Save " + world.getName() + " has conflict with upstream changes.");
@@ -269,7 +277,7 @@ public class SaveSync
 			// 4) Purge old folder, re-download it.
 			Random rnd = new Random();
 			String newName = "conflicted-" + rnd.nextInt(1000);
-			String folderName = saveRepo.getName() + "-" + newName;
+			String folderName = SaveConfig.RepositoryName + "-" + newName;
 			File newWorld = new File(world.getParent() + "/" + folderName);
 			logger.info("Attempting to rename " + world + " -> " + newWorld);
 			move(world, newWorld);
@@ -290,10 +298,10 @@ public class SaveSync
 		}
     }
     
-    void CloneDefaultBranch() throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException {
+    void CloneDefaultBranch() throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
 		File saveFolder = new File(Minecraft.getMinecraft().mcDataDir, "saves");
-		File world = new File(saveFolder, saveRepo.getName() + "-" + saveRepo.getDefaultBranch());
-		SyncClone(world, saveRepo.getDefaultBranch());
+		File world = new File(saveFolder, SaveConfig.RepositoryName + "-main");
+		SyncClone(world, "main");
     }
     
     public void SyncDownload() throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, NoWorkTreeException, IOException, SyncException {
@@ -307,7 +315,7 @@ public class SaveSync
     	}
     	boolean hasdefault = false;
     	for(File file : files) {
-    		if(file.getName().endsWith(saveRepo.getDefaultBranch())) {
+    		if(file.getName().endsWith("main")) {
     			hasdefault = true;
     			break;
     		}
@@ -351,8 +359,6 @@ public class SaveSync
     	@Comment("GitHub Personal Access Token with read/write access to the repository")
         public static String API_Key = "none";
     }
-
-
 }
 
 

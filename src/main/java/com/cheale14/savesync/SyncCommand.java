@@ -36,7 +36,7 @@ public class SyncCommand extends CommandBase {
 			return;
 		}
 		if("register".equalsIgnoreCase(args[0])) {
-			String branch = SaveSync.saveRepo.getDefaultBranch();
+			String branch = "main";
 			if(args.length == 2) {
 				branch = args[1];
 			} else {
