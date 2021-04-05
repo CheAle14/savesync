@@ -64,7 +64,7 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.1";
+    public static final String VERSION = "0.2";
 
     public static Logger logger;
 
@@ -203,6 +203,10 @@ public class SaveSync
     
     public static void FixNBT(File worldFolder) throws IOException {
     	File nbtFile = new File(worldFolder, "level.dat");
+    	if(!nbtFile.exists()) {
+    		logger.warn("NBT file does not exist for " + worldFolder.getName() + ", this is weird?");
+    		return;
+    	}
     	NamedTag outer = NBTUtil.read(nbtFile);
     	CompoundTag levelData = (CompoundTag) outer.getTag();
     	CompoundTag Data = (CompoundTag) levelData.get("Data");
