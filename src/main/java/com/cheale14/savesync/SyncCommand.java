@@ -62,7 +62,7 @@ public class SyncCommand extends CommandBase {
 			}
 		} else if("now".equalsIgnoreCase(args[0])) {
 			try {
-				SaveSync.SyncUpload(DimensionManager.getCurrentSaveRootDirectory());
+				SaveSync.SyncUpload(DimensionManager.getCurrentSaveRootDirectory(), new MCCommandMonitor(sender));
 				sender.sendMessage(new TextComponentString("Synced")
 						.setStyle(new Style().setColor(TextFormatting.GREEN)));
 			} catch (GitAPIException | IOException | URISyntaxException e) {

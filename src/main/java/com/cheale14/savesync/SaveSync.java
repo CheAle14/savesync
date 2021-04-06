@@ -1,6 +1,10 @@
 package com.cheale14.savesync;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
@@ -9,10 +13,14 @@ import net.minecraftforge.common.config.Config.Comment;
 import net.minecraftforge.common.config.Config.Name;
 import net.minecraftforge.common.config.Config.Type;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent.OnConfigChangedEvent;
+import net.minecraftforge.fml.common.FMLCommonHandler;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
+import net.minecraftforge.fml.common.ModContainer;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
@@ -25,6 +33,7 @@ import net.querz.nbt.io.NamedTag;
 import net.querz.nbt.io.SNBTUtil;
 import net.querz.nbt.tag.CompoundTag;
 
+import java.awt.SplashScreen;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -64,9 +73,13 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.2";
+    public static final String VERSION = "0.3";
+    
+    public static final String SYNCNAME = "SYNC.txt";
+    public static final String MODSNAME = "MODS.txt";
 
     public static Logger logger;
+    public static boolean loadedSync;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
@@ -76,18 +89,33 @@ public class SaveSync
     }
 
     @EventHandler
-    public void init(FMLInitializationEvent event) throws NoWorkTreeException, InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException, SyncException
+    public void init(FMLInitializationEvent event) throws Exception
     {
     	logger.info("Side: " + event.getSide());
-        // some example code
     	logger.info("Repo: https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName);
     	LoadGithub();
+    	CheckMods();
     }
     
     @EventHandler
     public void serverStart(FMLServerStartingEvent event) {
     	event.registerServerCommand(new SyncCommand());
     	
+    }
+    
+    @EventHandler
+    public void serverStarted(FMLServerStartedEvent event) {
+    	MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
+    	if(!loadedSync) {
+    		server.sendMessage(new TextComponentString("Error: savesync did not load properly - please check logs.")
+    				.setStyle(new Style().setColor(TextFormatting.RED)));
+    	}
+    	if(SaveConfig.API_Key == null || "none".equalsIgnoreCase(SaveConfig.API_Key)) {
+    		server.sendMessage(new TextComponentString("You have not set your GitHub personal access token for save syncing.")
+    				.setStyle(new Style().setColor(TextFormatting.RED)));
+    	}
+		server.sendMessage(new TextComponentString("Server data directory: " + server.getDataDirectory())
+				.setStyle(new Style().setColor(TextFormatting.GOLD)));
     }
     
     @EventHandler
@@ -99,11 +127,76 @@ public class SaveSync
     public void serverStopped(FMLServerStoppedEvent event) {
     	logger.info("Server has stopped, syncing");
     	try {
-			SyncUploadAll();
+			SyncUploadAll(new SyncProgMonitor());
 		} catch (GitAPIException | IOException | URISyntaxException e) {
 			logger.error(e);
 		}
     }
+    
+    public void CheckMods() throws Exception {
+    	List<SavedMod> mods = new LinkedList<SavedMod>();
+    	for(ModContainer mod : Loader.instance().getModList()) {
+    		mods.add(new SavedMod(mod));
+    	}
+    	for(File world : GetSyncFolders()) {
+    		CheckMods(world, mods);
+    	}
+    }
+    
+    private SavedMod getMod(List<SavedMod> mods, String modId ) {
+    	for(SavedMod mod : mods) {
+    		if(modId.equalsIgnoreCase(mod.Id))
+    			return mod;
+    	}
+    	return null;
+    }
+    
+    // left > right
+    boolean versionIsAhead(String left, String right) {
+    	Version lV = new Version(left);
+    	Version rV = new Version(right);
+    	int compare = lV.compareTo(rV);
+    	logger.info(left + " vs " + right + " = " + compare);
+    	return compare > 0;
+    }
+    
+    public void CheckMods(File worldFolder, List<SavedMod> mods) throws Exception {
+    	File modsFile = new File(worldFolder, MODSNAME);
+    	if(!modsFile.exists())
+    		return;
+    	List<SavedMod> storedMods = new LinkedList<SavedMod>();
+    	try (Scanner scanner = new Scanner(modsFile)) {
+    		while(scanner.hasNextLine()) {
+        		storedMods.add(new SavedMod(scanner.nextLine()));
+    		}
+    	}
+    	for(SavedMod hasMod : mods) {
+    		SavedMod neededMod = getMod(storedMods, hasMod.Id);
+    		if(neededMod == null) {
+    			throw new Exception("We are missing mod " + hasMod.toString());
+    		}
+    		if(!neededMod.Version.equalsIgnoreCase(hasMod.Version)) {
+    			if(!versionIsAhead(hasMod.Version, neededMod.Version)) {
+    				throw new Exception(hasMod.Name + " requires version " + hasMod.Version + ", but we have " + neededMod.Version);
+    			}
+    		}
+    	}
+    }
+    
+    public static void WriteMods(File worldFolder) throws IOException {
+    	File modsFile = new File(worldFolder, MODSNAME);
+    	if(!modsFile.exists())
+    		modsFile.createNewFile();
+    	try(FileWriter writer = new FileWriter(modsFile)) {
+	    	for(ModContainer mod : Loader.instance().getModList()) {
+	    		SavedMod sv = new SavedMod(mod);
+	    		writer.write(sv.toString() + "\r\n");
+	    	}
+			writer.close();
+    	}
+    }
+    
+    
     
     public void LoadGithub() throws NoWorkTreeException, InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException, SyncException {
     	if(SaveConfig.API_Key == null || "none".equalsIgnoreCase(SaveConfig.API_Key)) {
@@ -130,9 +223,9 @@ public class SaveSync
 		return "https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName + ".git";
     }
     
-    public void SyncUploadAll() throws GitAPIException, IOException, URISyntaxException {
+    public void SyncUploadAll(ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
     	for(File folder : GetSyncFolders()) {
-    		SyncUpload(folder);
+    		SyncUpload(folder, monitor);
     	}
     }
     
@@ -149,15 +242,16 @@ public class SaveSync
     }
     
     
-    public static void SyncUpload(File world) throws GitAPIException, IOException, URISyntaxException {
+    public static void SyncUpload(File world, ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
     	String branchName = readFile(new File(world, "SYNC.txt"));
     	Git git = null;
     	if(world.listFiles(new NameFilter(".git")).length == 0) {
-    		SaveSync.logger.info("No .git folder, so we'll need to init");
+    		monitor.beginTask("Initializing git folder", 2);
     		InitCommand init = Git.init();
     		init.setBare(false);
     		init.setDirectory(world);
     		init.setInitialBranch(branchName);
+    		monitor.update(1);
     		
     		String url = remoteUrl();
     		SaveSync.logger.info("Remote URL: " + url);
@@ -166,24 +260,29 @@ public class SaveSync
 	    		.setName("origin")
 	    		.setUri(new URIish(url))
 	    		.call();
-
+    		monitor.update(1);
+    		monitor.endTask();
     		
     	} else {
     		git = Git.open(world);
     	}
-    	SaveSync.logger.info("Fetching from remote");
+    	WriteMods(world);
+    	monitor.beginTask("Fetching from remote", 1);
     	git.fetch().setCredentialsProvider(auth())
     		.call();
+    	monitor.endTask();
+    	monitor.beginTask("Calculating changes", 1);
     	List<DiffEntry> diff = git.diff().call();
     	SaveSync.logger.info("Number of differences from remote: " + diff.size());
     	for(DiffEntry entry : diff) {
     		logger.info(entry.getChangeType().toString() + ": " + entry.getOldPath() + " -> " + entry.getNewPath());
     	}
+    	monitor.endTask();
     	git.add().addFilepattern(".").call();
     	git.commit().setSign(false).setMessage("Automatically syncing changes").call();
     	PushCommand push = git.push();
     	push.setCredentialsProvider(auth());
-		push.setProgressMonitor(new SyncProgMonitor());
+		push.setProgressMonitor(monitor);
 		push.call();
 		git.close();
 		SaveSync.logger.info("Successfully pushed?");
@@ -292,7 +391,7 @@ public class SaveSync
 			Ref branch = git.branchCreate().setName(newName).call();
 			git.checkout().setName(newName).call();
 			git.close();
-			SyncUpload(newWorld);
+			SyncUpload(newWorld, new SyncProgMonitor());
 			logger.info("Pushed conflicts to their own branch.");
 			logger.info("We can now attempt to make sure the old folder is deleted and pull it again");
 			world.delete();
