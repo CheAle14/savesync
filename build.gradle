@@ -112,7 +112,10 @@ task fatJar(type: Jar) {
 }
 task copyToLib(type: Copy) {
     into "${buildDir}/libs"
-    from configurations.runtime
+    from (configurations.runtime) {
+    	exclude '*Dummy.jar'
+    	exclude '*-sources.jar'
+    }
 }
 build.finalizedBy(copyToLib)
 
