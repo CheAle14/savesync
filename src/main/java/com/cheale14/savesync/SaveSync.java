@@ -2,10 +2,13 @@ package com.cheale14.savesync;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.GameType;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config;
@@ -35,16 +38,29 @@ import net.querz.nbt.io.NBTUtil;
 import net.querz.nbt.io.NamedTag;
 import net.querz.nbt.io.SNBTUtil;
 import net.querz.nbt.tag.CompoundTag;
+import net.querz.nbt.tag.ListTag;
+import net.querz.nbt.tag.Tag;
 
 import java.awt.SplashScreen;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.ProtocolException;
+import java.net.SocketException;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -76,13 +92,18 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.4";
+    public static final String VERSION = "0.5";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
+    
+    private static final String MLAPI = "https://ml-api.uk.ms";
 
     public static Logger logger;
     public static boolean loadedSync = false;
+    public static boolean hamachiRunning = false;
+    public static String hamachiIP = null;
+    public static String lanPort = null;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
@@ -99,6 +120,12 @@ public class SaveSync
     	LoadGithub();
     	CheckMods();
     	loadedSync = true;
+    	try {
+    		AddServer();
+    	} catch(Exception e) {
+    		logger.error(e);
+    		e.printStackTrace();
+    	}
     }
     
     @EventHandler
@@ -139,41 +166,219 @@ public class SaveSync
     public void serverStarted(FMLServerStartedEvent event) {
     	MinecraftServer sender = FMLCommonHandler.instance().getMinecraftServerInstance();
     	warnStartups(sender, sender);
+    	
     }
     
     @SubscribeEvent
     public void playerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-    	warnStartups(event.player, event.player.getServer());
+    	Side side = FMLCommonHandler.instance().getEffectiveSide();
+    	logger.info(side + " effective");
+    	logger.info(FMLCommonHandler.instance().getSide() + " actual");
+    	if(side != Side.SERVER)
+    		return;
+    	EntityPlayer player = event.player;
+    	warnStartups(player, player.getServer());
+    	if(!loadedSync) {
+    		return; // don't bother with hamachi if we're not syncing
+    	}
+    	try {
+			hamachiIP = getHamachiIP();
+			hamachiRunning = hamachiIP != null;
+		} catch (IOException | InterruptedException e) {
+			logger.error(e);
+			return;
+		}
+    	if(!hamachiRunning) {
+    		player.sendMessage(new TextComponentString("Hamachi is not running, perhaps you should turn it on?"));
+    		return;
+    	}
+    	MinecraftServer server = player.getServer();
+    	if(lanPort == null) {
+    		try {
+    			hamachiIP = getHamachiIP();
+    			if(hamachiIP == null) {
+    	    		player.sendMessage(new TextComponentString("Could not determine hamachi IP automatcally. You'll need to do this part yourself"));
+    	    		return;
+    			}
+    	    	if(hamachiIP != null) {
+    	    		hamachiRunning = true;
+    	    		lanPort = server.shareToLAN(GameType.SURVIVAL, true);
+    				String s = PutServer();
+    				if(s != null) {
+    		    		player.sendMessage(new TextComponentString(s)
+    		    				.setStyle(new Style().setColor(TextFormatting.RED)));
+    		    		return;
+    				}
+    	    	}
+    	    	player.sendMessage(new TextComponentString("This server should automatically be found on the server list via " + hamachiIP + ":" + 
+    	    			lanPort));
+        	}
+    		catch (IOException | InterruptedException e1) {
+    			// TODO Auto-generated catch block
+    			logger.error(e1);
+	    		player.sendMessage(new TextComponentString("Failed to automatically publish server connection info, check log for error")
+	    				.setStyle(new Style().setColor(TextFormatting.RED)));
+	    		return;
+    		}
+    	}
     }
     
     @EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
     	logger.info("Server is stopping");
-    }
-    
-    @EventHandler
-    public void serverStopped(FMLServerStoppedEvent event) {
-    	logger.info("Server has stopped, syncing");
-    	File root = DimensionManager.getCurrentSaveRootDirectory();
-    	if(root == null) {
-    		logger.info("Attempting to save only " + root.getAbsolutePath());
-    		try {
-				SyncUpload(root, new SyncProgMonitor());
-			} catch (GitAPIException | IOException | URISyntaxException e) {
-				// TODO Auto-generated catch block
-				logger.error(e);
-			}
-    	} else {
-        	try {
-    			SyncUploadAll(new SyncProgMonitor());
-    		} catch (GitAPIException | IOException | URISyntaxException e) {
-    			logger.error(e);
-    		}
+    	try {
+        	lastLoaded = DimensionManager.getCurrentSaveRootDirectory();
+    	} catch(Exception e) {
+    		logger.error(e);
     	}
     }
     
-    public void AddServer() {
-    	MinecraftServer s;
+    File lastLoaded = null;
+    @EventHandler
+    public void serverStopped(FMLServerStoppedEvent event) {
+    	logger.info("Server has stopped, syncing");
+    	try {
+	    	if(lastLoaded != null) {
+	    		logger.info("Attempting to save only " + lastLoaded.getAbsolutePath());
+	    		try {
+					SyncUpload(lastLoaded, new SyncProgMonitor());
+				} catch (GitAPIException | IOException | URISyntaxException e) {
+					// TODO Auto-generated catch block
+					logger.error(e);
+				}
+	    	} else {
+	    		logger.info("Couldn't determine last world, saving all");
+	        	try {
+	    			SyncUploadAll(new SyncProgMonitor());
+	    		} catch (GitAPIException | IOException | URISyntaxException e) {
+	    			logger.error(e);
+	    		}
+	    	}
+    	} catch(Exception e) {
+    		logger.error(e);
+    	}
+    }
+    
+    // http://stackoverflow.com/a/19005828/3764804
+    private static boolean isProcessRunning(String processName) throws IOException, InterruptedException
+    {
+        ProcessBuilder processBuilder = new ProcessBuilder("tasklist.exe");
+        Process process = processBuilder.start();
+        String tasksList = toString(process.getInputStream());
+
+        return tasksList.contains(processName);
+    }
+
+    // http://stackoverflow.com/a/5445161/3764804
+    private static String toString(InputStream inputStream)
+    {
+        Scanner scanner = new Scanner(inputStream, "UTF-8").useDelimiter("\\A");
+        String string = scanner.hasNext() ? scanner.next() : "";
+        scanner.close();
+
+        return string;
+    }
+    
+    
+    static String getHamachiIP() throws IOException, InterruptedException {
+    	if(!isProcessRunning("hamachi-2-ui.exe") ) {
+    		logger.info("Hamachi is not running, no IP");
+    		return null;
+    	}
+    	Enumeration<NetworkInterface> ints = NetworkInterface.getNetworkInterfaces();
+    	while(ints.hasMoreElements()) {
+    		NetworkInterface netInt = ints.nextElement();
+    		if(!netInt.getDisplayName().contains("Hamachi"))
+    			continue;
+    		Enumeration<InetAddress> addrs = netInt.getInetAddresses();
+    		while(addrs.hasMoreElements()) {
+    			InetAddress addr = addrs.nextElement();
+    			logger.info(netInt.getDisplayName() + ": " + addr.toString());
+    			if(addr.getHostAddress().startsWith("25.")) {
+					return addr.getHostAddress();
+    			}
+    		}
+    	}
+    	return null;
+    }
+    
+    public static String PutServer() throws IOException, InterruptedException {
+		URL url = new URL(MLAPI + "/mc/hamIp?ip=" + hamachiIP + "&port=" + lanPort);
+		logger.info("PUTing to " + url.toString());
+		HttpURLConnection con = (HttpURLConnection) url.openConnection();
+		con.setRequestMethod("PUT");
+		con.setRequestProperty("Content-Length", "0");
+		con.setRequestProperty("Host", "ml-api.uk.ms");
+		con.setRequestProperty("Connection", "close");
+		con.setRequestProperty("User-Agent", "savesync v" + VERSION);
+		con.setRequestProperty("Accept", "text/html");
+		
+		int code = con.getResponseCode();
+		if(code < 200 || code > 299) {
+			Reader streamReader = new InputStreamReader(con.getErrorStream());
+			StringBuffer content = new StringBuffer();
+			try(BufferedReader bf = new BufferedReader(streamReader)) {
+				String line;
+				while((line = bf.readLine()) != null)
+					content.append(line);
+			}
+			logger.error("Failed to PUT: " + code + ": " + content);
+			return "Failed with " + code;
+		}
+		logger.info("Successfully PUTted");
+		return null;
+    }
+    
+    String getServer() throws IOException {
+    	URL url = new URL(MLAPI + "/mc/hamIp");
+		logger.info("GETing to " + url.toString());
+		HttpURLConnection con = (HttpURLConnection) url.openConnection();
+		con.setRequestMethod("GET");
+		
+		int code = con.getResponseCode();
+		logger.info("Response: " + code);
+		Reader streamReader;
+		if(code > 299) {
+			streamReader = new InputStreamReader(con.getErrorStream());
+		} else {
+			streamReader = new InputStreamReader(con.getInputStream());
+		}
+		StringBuffer content = new StringBuffer();
+		try(BufferedReader bf = new BufferedReader(streamReader)) {
+			String line;
+			while((line = bf.readLine()) != null)
+				content.append(line);
+		}
+		if(code > 299) {
+			logger.error("Failed GET with " + code + ": " + content);
+			return null;
+		}
+		if(code == 204) {
+			return null;
+		}
+		return content.toString();
+    }
+    
+    public void AddServer() throws IOException {
+    	String connInfo = getServer();
+    	ListTag<CompoundTag> ls = new ListTag<>(CompoundTag.class);
+    	if(connInfo == null || connInfo.length() == 0) {
+    		logger.info("No server known to be running already.");
+    	} else {
+        	logger.info("Fetched info: " + connInfo);
+	    	CompoundTag serverInfo = new CompoundTag();
+	    	serverInfo.putString("icon", Icon.B64);
+	    	serverInfo.putString("ip", connInfo);
+	    	serverInfo.putString("name", "Omnifactory Hamachi");
+	    	ls.add(serverInfo);
+    	}
+    	NamedTag root = new NamedTag("", ls);
+    	logger.info("Getting file location");
+    	
+    	File serverDat = new File(Minecraft.getMinecraft().mcDataDir, "server.dat");
+    	logger.info("Writing NBT to " + serverDat.getAbsolutePath());
+    	NBTUtil.write(root, serverDat, false); // false -> uncompressed
+    	logger.info("Done.");
     }
     
     public void CheckMods() throws Exception {
