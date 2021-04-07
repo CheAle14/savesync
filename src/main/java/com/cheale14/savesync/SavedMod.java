@@ -11,6 +11,8 @@ public class SavedMod {
 		Id = mod.getModId();
 		Name = mod.getName();
 		Version = mod.getVersion();
+		if("@VERSION@".equalsIgnoreCase(Version))
+			Version = "0.0.0";
 	}
 	
 	public SavedMod(String line) {
@@ -18,6 +20,8 @@ public class SavedMod {
 		Id = arr[0];
 		Name = arr[1];
 		Version = arr[2];
+		if("@VERSION@".equalsIgnoreCase(Version))
+			Version = "0.0.0";
 	}
 	
 	@Override

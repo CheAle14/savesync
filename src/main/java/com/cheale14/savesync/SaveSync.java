@@ -1,10 +1,12 @@
 package com.cheale14.savesync;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
@@ -26,6 +28,7 @@ import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import net.minecraftforge.fml.common.eventhandler.Event.Result;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.querz.nbt.io.NBTSerializer;
 import net.querz.nbt.io.NBTUtil;
@@ -73,13 +76,13 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.3";
+    public static final String VERSION = "0.4";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
 
     public static Logger logger;
-    public static boolean loadedSync;
+    public static boolean loadedSync = false;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
@@ -95,6 +98,7 @@ public class SaveSync
     	logger.info("Repo: https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName);
     	LoadGithub();
     	CheckMods();
+    	loadedSync = true;
     }
     
     @EventHandler
@@ -103,19 +107,43 @@ public class SaveSync
     	
     }
     
+    void warnStartups(ICommandSender sender, MinecraftServer server) {
+    	if(SaveConfig.API_Key == null || "none".equalsIgnoreCase(SaveConfig.API_Key)) {
+    		sender.sendMessage(new TextComponentString("The server has not set their GitHub personal access token for save syncing.")
+    				.setStyle(new Style().setColor(TextFormatting.RED)));
+    	}
+    	if(!loadedSync) {
+    		sender.sendMessage(new TextComponentString("Error: savesync did not load properly - please check logs.")
+    				.setStyle(new Style().setColor(TextFormatting.RED)));
+    	} else {
+	    	File root = server.getWorld(0).getSaveHandler().getWorldDirectory();
+	    	if(root != null) {
+				sender.sendMessage(new TextComponentString(root.getAbsolutePath()));
+				File syncFile = new File(root, SYNCNAME);
+				if(syncFile.exists()) {
+		    		sender.sendMessage(new TextComponentString("World should be saved upon exit (or /sync now) to " + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName)
+	    				.setStyle(new Style().setColor(TextFormatting.GREEN)));
+				} else {
+		    		sender.sendMessage(new TextComponentString("Notice: This save will not be synced to github. To setup, use /sync now [branch]")
+		    				.setStyle(new Style().setColor(TextFormatting.RED)));
+				}
+				
+	    	} else {
+	    		sender.sendMessage(new TextComponentString("[savesync] Could not find data directory?")
+	    				.setStyle(new Style().setColor(TextFormatting.RED)));
+	    	}
+    	}
+    }
+    
     @EventHandler
     public void serverStarted(FMLServerStartedEvent event) {
-    	MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
-    	if(!loadedSync) {
-    		server.sendMessage(new TextComponentString("Error: savesync did not load properly - please check logs.")
-    				.setStyle(new Style().setColor(TextFormatting.RED)));
-    	}
-    	if(SaveConfig.API_Key == null || "none".equalsIgnoreCase(SaveConfig.API_Key)) {
-    		server.sendMessage(new TextComponentString("You have not set your GitHub personal access token for save syncing.")
-    				.setStyle(new Style().setColor(TextFormatting.RED)));
-    	}
-		server.sendMessage(new TextComponentString("Server data directory: " + server.getDataDirectory())
-				.setStyle(new Style().setColor(TextFormatting.GOLD)));
+    	MinecraftServer sender = FMLCommonHandler.instance().getMinecraftServerInstance();
+    	warnStartups(sender, sender);
+    }
+    
+    @SubscribeEvent
+    public void playerJoin(PlayerEvent.PlayerLoggedInEvent event) {
+    	warnStartups(event.player, event.player.getServer());
     }
     
     @EventHandler
@@ -126,11 +154,26 @@ public class SaveSync
     @EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
     	logger.info("Server has stopped, syncing");
-    	try {
-			SyncUploadAll(new SyncProgMonitor());
-		} catch (GitAPIException | IOException | URISyntaxException e) {
-			logger.error(e);
-		}
+    	File root = DimensionManager.getCurrentSaveRootDirectory();
+    	if(root == null) {
+    		logger.info("Attempting to save only " + root.getAbsolutePath());
+    		try {
+				SyncUpload(root, new SyncProgMonitor());
+			} catch (GitAPIException | IOException | URISyntaxException e) {
+				// TODO Auto-generated catch block
+				logger.error(e);
+			}
+    	} else {
+        	try {
+    			SyncUploadAll(new SyncProgMonitor());
+    		} catch (GitAPIException | IOException | URISyntaxException e) {
+    			logger.error(e);
+    		}
+    	}
+    }
+    
+    public void AddServer() {
+    	MinecraftServer s;
     }
     
     public void CheckMods() throws Exception {
@@ -153,8 +196,8 @@ public class SaveSync
     
     // left > right
     boolean versionIsAhead(String left, String right) {
-    	Version lV = new Version(left);
-    	Version rV = new Version(right);
+    	Version lV = Version.parse(left);
+    	Version rV = Version.parse(right);
     	int compare = lV.compareTo(rV);
     	logger.info(left + " vs " + right + " = " + compare);
     	return compare > 0;
@@ -177,7 +220,7 @@ public class SaveSync
     		}
     		if(!neededMod.Version.equalsIgnoreCase(hasMod.Version)) {
     			if(!versionIsAhead(hasMod.Version, neededMod.Version)) {
-    				throw new Exception(hasMod.Name + " requires version " + hasMod.Version + ", but we have " + neededMod.Version);
+    				throw new Exception(hasMod.Name + " requires version " + neededMod.Version + ", but we have " + hasMod.Version);
     			}
     		}
     	}

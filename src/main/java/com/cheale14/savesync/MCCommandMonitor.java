@@ -61,8 +61,6 @@ public class MCCommandMonitor implements ProgressMonitor {
 	public void update(int arg0) {
 		// TODO Auto-generated method stub
 		currentWork += arg0;
-		sender.sendMessage(suffixed(
-				new TextComponentString("   -> " + currentWork + "/" + totalWork)));
 	}
 
 }
