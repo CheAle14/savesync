@@ -1,6 +1,8 @@
 package com.cheale14.savesync;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiMultiplayer;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
@@ -9,6 +11,7 @@ import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.GameType;
+import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config;
@@ -47,6 +50,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -97,7 +101,7 @@ public class SaveSync
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
     
-    private static final String MLAPI = "https://ml-api.uk.ms";
+    private static final String MLAPI = "https://ml-api.uk.ms"; // "http://localhost:8887"; //
 
     public static Logger logger;
     public static boolean loadedSync = false;
@@ -120,12 +124,6 @@ public class SaveSync
     	LoadGithub();
     	CheckMods();
     	loadedSync = true;
-    	try {
-    		AddServer();
-    	} catch(Exception e) {
-    		logger.error(e);
-    		e.printStackTrace();
-    	}
     }
     
     @EventHandler
@@ -180,6 +178,9 @@ public class SaveSync
     	warnStartups(player, player.getServer());
     	if(!loadedSync) {
     		return; // don't bother with hamachi if we're not syncing
+    	}
+    	if(!SaveConfig.SyncServerConnect) {
+    		return;
     	}
     	try {
 			hamachiIP = getHamachiIP();
@@ -302,16 +303,36 @@ public class SaveSync
     	return null;
     }
     
+    @SubscribeEvent
+    public void guiOpened(GuiOpenEvent event) {
+    	if(!SaveConfig.SyncServerConnect) {
+    		return;
+    	}
+    		
+    	GuiScreen gui = event.getGui();
+    	if(gui == null) {
+    		logger.info("Opening null gui?");
+    		return;
+    	}
+    	if (!(gui instanceof GuiMultiplayer)) {
+    		return;
+    	}
+    	logger.info("Opening multiplayer screen, getting hamachi server");
+    	try {
+			AddServer();
+		} catch (IOException e) {
+			logger.error(e);
+		}
+    }
+    
     public static String PutServer() throws IOException, InterruptedException {
-		URL url = new URL(MLAPI + "/mc/hamIp?ip=" + hamachiIP + "&port=" + lanPort);
-		logger.info("PUTing to " + url.toString());
+    	if(!SaveConfig.SyncServerConnect) {
+    		return "Sync disabled";
+    	}
+		URL url = new URL(MLAPI + "/mc/sethamIp?ip=" + hamachiIP + "&port=" + lanPort);
+		logger.info("GETing to " + url.toString());
 		HttpURLConnection con = (HttpURLConnection) url.openConnection();
-		con.setRequestMethod("PUT");
-		con.setRequestProperty("Content-Length", "0");
-		con.setRequestProperty("Host", "ml-api.uk.ms");
-		con.setRequestProperty("Connection", "close");
-		con.setRequestProperty("User-Agent", "savesync v" + VERSION);
-		con.setRequestProperty("Accept", "text/html");
+		con.setRequestMethod("GET");
 		
 		int code = con.getResponseCode();
 		if(code < 200 || code > 299) {
@@ -360,6 +381,9 @@ public class SaveSync
     }
     
     public void AddServer() throws IOException {
+    	if(!SaveConfig.SyncServerConnect) {
+    		return;
+    	}
     	String connInfo = getServer();
     	ListTag<CompoundTag> ls = new ListTag<>(CompoundTag.class);
     	if(connInfo == null || connInfo.length() == 0) {
@@ -372,10 +396,12 @@ public class SaveSync
 	    	serverInfo.putString("name", "Omnifactory Hamachi");
 	    	ls.add(serverInfo);
     	}
-    	NamedTag root = new NamedTag("", ls);
+    	CompoundTag innerRoot = new CompoundTag();
+    	innerRoot.put("servers", ls);
+    	NamedTag root = new NamedTag("", innerRoot);
     	logger.info("Getting file location");
     	
-    	File serverDat = new File(Minecraft.getMinecraft().mcDataDir, "server.dat");
+    	File serverDat = new File(Minecraft.getMinecraft().mcDataDir, "servers.dat");
     	logger.info("Writing NBT to " + serverDat.getAbsolutePath());
     	NBTUtil.write(root, serverDat, false); // false -> uncompressed
     	logger.info("Done.");
@@ -493,7 +519,12 @@ public class SaveSync
     public static void SyncUpload(File world, ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
     	String branchName = readFile(new File(world, "SYNC.txt"));
     	Git git = null;
-    	if(world.listFiles(new NameFilter(".git")).length == 0) {
+    	if(world.listFiles(new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				return ".git".equals(name);
+			}
+    	}).length == 0) {
     		monitor.beginTask("Initializing git folder", 2);
     		InitCommand init = Git.init();
     		init.setBare(false);
@@ -709,6 +740,24 @@ public class SaveSync
     	@Name("API Key")
     	@Comment("GitHub Personal Access Token with read/write access to the repository")
         public static String API_Key = "none";
+    	
+    	@Name("Server Sync")
+    	@Comment("Sends server connection info to MLAPI and sets server list accordingly")
+    	public static boolean SyncServerConnect = true;
+    }
+    
+    public static class NameFilter implements FilenameFilter {
+    	
+    	private final String _filter;
+    	public NameFilter(String name) {
+    		_filter = name;
+    	}
+
+    	@Override
+    	public boolean accept(File dir, String name) {
+    		return _filter.equalsIgnoreCase(name);
+    	}
+    	
     }
 }
 

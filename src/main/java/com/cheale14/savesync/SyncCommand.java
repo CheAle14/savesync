@@ -73,7 +73,7 @@ public class SyncCommand extends CommandBase {
 			}
 		} else if("stop".equalsIgnoreCase(args[0])) {
 			File saveFolder = DimensionManager.getCurrentSaveRootDirectory();
-			File syncFile = new File(saveFolder, "SYNC.txt");
+			File syncFile = new File(saveFolder, SaveSync.SYNCNAME);
 			syncFile.delete();
 			sender.sendMessage(new TextComponentString("This world will no longer be automatically synced"));
 		} else {
