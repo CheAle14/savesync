@@ -4,6 +4,9 @@ package com.cheale14.savesync;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +52,7 @@ public class Version implements Comparable<Version> {
 		IntegerParts = intLs.toArray(new Integer[0]);
 		SuffixParts = strLs.toArray(new String[0]);
 	}
+	
 	public static Version parse(String s) {
 		return new Version(s);
 	}
@@ -99,18 +103,13 @@ public class Version implements Comparable<Version> {
 	
 	@Override
 	public String toString() {
-		String s ="";
-		for(Integer i : IntegerParts) {
-			s += i.toString() + ".";
-		}
-		s = s.substring(0, s.length() - 1); // removes last .
-		if(this.SuffixParts.length > 0) {
-			s += "-";
-			for(String x : SuffixParts) {
-				s += x + " ";
-			}
-			s = s.substring(0, s.length() - 1);
-		}
-		return s;
+		String version = "";
+		if(IntegerParts.length > 0)
+			version = StringUtils.join(IntegerParts, ".");
+		if(SuffixParts.length > 0)
+			version = version + "-" + String.join("-", SuffixParts);
+		if(version.length() == 0)
+			version = "0.0.0";
+		return version;
 	}
 }

@@ -5,7 +5,6 @@ import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
@@ -16,7 +15,6 @@ import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
-import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.common.config.Config.Comment;
 import net.minecraftforge.common.config.Config.Name;
 import net.minecraftforge.common.config.Config.Type;
@@ -36,19 +34,14 @@ import net.minecraftforge.fml.common.eventhandler.Event.Result;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.relauncher.Side;
-import net.querz.nbt.io.NBTSerializer;
 import net.querz.nbt.io.NBTUtil;
 import net.querz.nbt.io.NamedTag;
-import net.querz.nbt.io.SNBTUtil;
 import net.querz.nbt.tag.CompoundTag;
 import net.querz.nbt.tag.ListTag;
-import net.querz.nbt.tag.Tag;
 
-import java.awt.SplashScreen;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -58,8 +51,6 @@ import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.ProtocolException;
-import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -70,24 +61,20 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.InitCommand;
 import org.eclipse.jgit.api.PushCommand;
-import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.api.errors.InvalidRefNameException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.errors.NoWorkTreeException;
-import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.GpgConfig;
 import org.eclipse.jgit.lib.ProgressMonitor;
 import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
@@ -96,7 +83,7 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.5";
+    public static final String VERSION = "0.7";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
@@ -108,6 +95,8 @@ public class SaveSync
     public static boolean hamachiRunning = false;
     public static String hamachiIP = null;
     public static String lanPort = null;
+    
+    public static boolean isUploading = false;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
@@ -121,7 +110,7 @@ public class SaveSync
     {
     	logger.info("Side: " + event.getSide());
     	logger.info("Repo: https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName);
-    	LoadGithub();
+    	//LoadGithub();
     	CheckMods();
     	loadedSync = true;
     }
@@ -204,12 +193,23 @@ public class SaveSync
     	    	if(hamachiIP != null) {
     	    		hamachiRunning = true;
     	    		lanPort = server.shareToLAN(GameType.SURVIVAL, true);
-    				String s = PutServer();
-    				if(s != null) {
-    		    		player.sendMessage(new TextComponentString(s)
-    		    				.setStyle(new Style().setColor(TextFormatting.RED)));
-    		    		return;
-    				}
+	    			player.sendMessage(new TextComponentString(
+	    					"Opened to lan: " + hamachiIP + ":" + lanPort
+	    					));
+    	    		try {
+        				String s = PutServer();
+	    				if(s != null) {
+	    		    		player.sendMessage(new TextComponentString(s)
+	    		    				.setStyle(new Style().setColor(TextFormatting.RED)));
+	    		    		return;
+	    				}
+    	    		} catch(SSLHandshakeException e) {
+    	    			logger.error(e);
+    	    			player.sendMessage(new TextComponentString(
+						"Failed to set IP on the cloud, you may need to apply security fixes to cacert"
+    	    					).setStyle(new Style().setColor(TextFormatting.RED)));
+    	    			
+    	    		}
     	    	}
     	    	player.sendMessage(new TextComponentString("This server should automatically be found on the server list via " + hamachiIP + ":" + 
     	    			lanPort));
@@ -237,7 +237,13 @@ public class SaveSync
     File lastLoaded = null;
     @EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
-    	logger.info("Server has stopped, syncing");
+    	logger.info("Server has stopped");
+    	if(isUploading) {
+    		logger.info("GUI hook will handle the sync");
+    		return;
+    	} else {
+    		logger.info("Attempting to sync...");
+    	}
     	try {
 	    	if(lastLoaded != null) {
 	    		logger.info("Attempting to save only " + lastLoaded.getAbsolutePath());
@@ -273,11 +279,10 @@ public class SaveSync
     // http://stackoverflow.com/a/5445161/3764804
     private static String toString(InputStream inputStream)
     {
-        Scanner scanner = new Scanner(inputStream, "UTF-8").useDelimiter("\\A");
-        String string = scanner.hasNext() ? scanner.next() : "";
-        scanner.close();
-
-        return string;
+    	try(Scanner scanner = new Scanner(inputStream, "UTF-8").useDelimiter("\\A")) {
+            String string = scanner.hasNext() ? scanner.next() : "";
+            return string;
+    	}
     }
     
     
@@ -320,6 +325,8 @@ public class SaveSync
     	logger.info("Opening multiplayer screen, getting hamachi server");
     	try {
 			AddServer();
+		} catch(SSLHandshakeException e) {
+			logger.error(e);
 		} catch (IOException e) {
 			logger.error(e);
 		}
@@ -427,6 +434,7 @@ public class SaveSync
     
     // left > right
     boolean versionIsAhead(String left, String right) {
+    	logger.debug("Comparing " + left + " vs " + right);
     	Version lV = Version.parse(left);
     	Version rV = Version.parse(right);
     	int compare = lV.compareTo(rV);
@@ -472,13 +480,13 @@ public class SaveSync
     
     
     
-    public void LoadGithub() throws NoWorkTreeException, InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException, SyncException {
+    /*public void LoadGithub() throws NoWorkTreeException, InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException, SyncException {
     	if(SaveConfig.API_Key == null || "none".equalsIgnoreCase(SaveConfig.API_Key)) {
 			logger.warn("No API key confiured, not attempting sync things..");
 		} else {
-	    	SyncDownload();
+	    	SyncDownload(new SyncProgMonitor());
 		}
-    }
+    }*/
     
     private static String readFile(File file) throws FileNotFoundException {
     	Scanner reader = new Scanner(file);
@@ -497,7 +505,7 @@ public class SaveSync
 		return "https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName + ".git";
     }
     
-    public void SyncUploadAll(ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
+    public static void SyncUploadAll(ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
     	for(File folder : GetSyncFolders()) {
     		SyncUpload(folder, monitor);
     	}
@@ -545,7 +553,14 @@ public class SaveSync
     	} else {
     		git = Git.open(world);
     	}
+    	monitor.beginTask("Writing modlist to " + SaveSync.MODSNAME, 1);
     	WriteMods(world);
+    	monitor.endTask();
+    	
+    	monitor.beginTask("Fixing NBT to neutral perpsective", 1);
+    	FixNBT(world);
+    	monitor.endTask();
+    	
     	monitor.beginTask("Fetching from remote", 1);
     	git.fetch().setCredentialsProvider(auth())
     		.call();
@@ -565,9 +580,10 @@ public class SaveSync
 		push.call();
 		git.close();
 		SaveSync.logger.info("Successfully pushed?");
+		isUploading = false;
     }
     
-    public List<File> GetSyncFolders() {
+    public static List<File> GetSyncFolders() {
     	File saveFolder = new File(Minecraft.getMinecraft().mcDataDir, "saves");
     	List<File> files = new LinkedList<File>();
     	for(File worldFolder : saveFolder.listFiles()) {
@@ -585,6 +601,7 @@ public class SaveSync
     		logger.warn("NBT file does not exist for " + worldFolder.getName() + ", this is weird?");
     		return;
     	}
+    	
     	NamedTag outer = NBTUtil.read(nbtFile);
     	CompoundTag levelData = (CompoundTag) outer.getTag();
     	CompoundTag Data = (CompoundTag) levelData.get("Data");
@@ -597,7 +614,7 @@ public class SaveSync
     	Files.copy(file.toPath(), nbtFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
     
-    public void SyncClone(File to, String branch) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
+    public static void SyncClone(File to, String branch, ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
     	if(!to.exists()) {
     		to.mkdir();
     	}
@@ -614,7 +631,7 @@ public class SaveSync
     		git.pull()
     			.setCredentialsProvider(auth())
     			.setRemote("origin")
-    			.setProgressMonitor(new SyncProgMonitor())
+    			.setProgressMonitor(monitor)
     			.call();
     		logger.info("Successfully cloned " + branch + " into " + to.getAbsolutePath());
     		git.close();
@@ -622,7 +639,7 @@ public class SaveSync
     	}
     }
     
-    void move(File from, File to) throws IOException {
+    static void move(File from, File to) throws IOException {
     	logger.info(from + " -> " + to);
     	if(from.isDirectory()) {
     		to.mkdir();
@@ -635,7 +652,7 @@ public class SaveSync
     	}
     }
     
-    public void SyncDownload(File world) throws IOException, NoWorkTreeException, GitAPIException, SyncException, URISyntaxException {
+    public static void SyncDownload(File world, ProgressMonitor monitor) throws IOException, NoWorkTreeException, GitAPIException, SyncException, URISyntaxException {
     	String branchName = readFile(new File(world, "SYNC.txt"));
     	Git git = Git.open(world);
 		/*git.fetch()
@@ -646,7 +663,7 @@ public class SaveSync
 		try {
     		git.pull()
     			.setCredentialsProvider(auth())
-    			.setProgressMonitor(new SyncProgMonitor())
+    			.setProgressMonitor(monitor)
     			.call();
     		FixNBT(world);
 		} catch(CheckoutConflictException e) {
@@ -675,24 +692,24 @@ public class SaveSync
 			logger.info("We can now attempt to make sure the old folder is deleted and pull it again");
 			world.delete();
 			logger.info("Folder deleted, cloning...");
-			SyncClone(world, branchName);
+			SyncClone(world, branchName, monitor);
 			
 		}
     }
     
-    void CloneDefaultBranch() throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
+    static void CloneDefaultBranch(ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
 		File saveFolder = new File(Minecraft.getMinecraft().mcDataDir, "saves");
 		File world = new File(saveFolder, SaveConfig.RepositoryName + "-main");
-		SyncClone(world, "main");
+		SyncClone(world, "main", monitor);
     }
     
-    public void SyncDownload() throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, NoWorkTreeException, IOException, SyncException {
+    public static void SyncDownload(ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, NoWorkTreeException, IOException, SyncException {
     	// Find save with 'SYNC.txt' in folder, 
     	// If none exists, freshly download master branch.
     	List<File> files = GetSyncFolders();
     	if(files.size() == 0) {
     		logger.warn("No sync folders exist, so cloning default branch...");
-    		CloneDefaultBranch();
+    		CloneDefaultBranch(monitor);
     		return;
     	}
     	boolean hasdefault = false;
@@ -703,10 +720,10 @@ public class SaveSync
     		}
     	}
     	if(!hasdefault) {
-    		CloneDefaultBranch();
+    		CloneDefaultBranch(monitor);
     	}
     	for(File file : files) {
-    		SyncDownload(file);
+    		SyncDownload(file, monitor);
     	}
     }
     
@@ -716,11 +733,8 @@ public class SaveSync
     {
         if (event.getModID().equals(MODID))
         {
-        	try {
-        		LoadGithub();
-        		ConfigManager.sync(MODID, Type.INSTANCE);
-        	} catch(IOException | NoWorkTreeException | GitAPIException | URISyntaxException | SyncException ex) {
-        		logger.error(ex);
+        	if(SaveConfig.API_Key == null || SaveConfig.API_Key.equals("none")) {
+        		logger.warn("Config cannot be changed to null API key");
         		event.setResult(Result.DENY);
         	}
         }
