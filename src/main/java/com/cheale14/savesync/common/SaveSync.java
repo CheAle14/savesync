@@ -81,7 +81,7 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.8";
+    public static final String VERSION = "0.9";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
@@ -307,6 +307,9 @@ public class SaveSync
     }
     
     public static void CheckMods() throws Exception {
+    	if(!SaveConfig.CheckMods) {
+    		return;
+    	}
     	List<SavedMod> mods = new LinkedList<SavedMod>();
     	for(ModContainer mod : Loader.instance().getModList()) {
     		mods.add(new SavedMod(mod));
@@ -559,6 +562,10 @@ public class SaveSync
     	@Name("Close UI")
     	@Comment("Automatically close sync UI if no errors occur")
     	public static boolean CloseUIOnSuccess = true;
+    	
+    	@Name("Check Mod Differences")
+    	@Comment("Check whether the synced save has different mods to what we have")
+    	public static boolean CheckMods = false;
     }
     
     public static class NameFilter implements FilenameFilter {
