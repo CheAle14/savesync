@@ -1,4 +1,4 @@
-package com.cheale14.savesync;
+package com.cheale14.savesync.common;
 
 public class SyncException extends Exception {
 

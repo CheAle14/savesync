@@ -1,4 +1,4 @@
-package com.cheale14.savesync.gui;
+package com.cheale14.savesync.client.gui;
 
 import java.awt.Color;
 import java.io.File;
@@ -7,8 +7,8 @@ import java.io.IOException;
 import org.apache.commons.lang3.StringUtils;
 import org.lwjgl.input.Mouse;
 
-import com.cheale14.savesync.SaveSync;
-import com.cheale14.savesync.SyncThread;
+import com.cheale14.savesync.common.SaveSync;
+import com.cheale14.savesync.common.SyncThread;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;

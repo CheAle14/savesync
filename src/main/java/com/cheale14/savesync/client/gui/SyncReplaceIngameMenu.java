@@ -1,10 +1,10 @@
-package com.cheale14.savesync.gui;
+package com.cheale14.savesync.client.gui;
 
 import java.io.File;
 import java.io.IOException;
 
-import com.cheale14.savesync.SaveSync;
-import com.cheale14.savesync.gui.SyncProgressGui.SyncType;
+import com.cheale14.savesync.client.gui.SyncProgressGui.SyncType;
+import com.cheale14.savesync.common.SaveSync;
 
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiIngameMenu;

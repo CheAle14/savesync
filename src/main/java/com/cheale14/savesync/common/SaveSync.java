@@ -1,8 +1,5 @@
-package com.cheale14.savesync;
+package com.cheale14.savesync.common;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiMultiplayer;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
@@ -24,6 +21,7 @@ import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.ModContainer;
+import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
@@ -83,13 +81,16 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.7";
+    public static final String VERSION = "0.8";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
     
-    private static final String MLAPI = "https://ml-api.uk.ms"; // "http://localhost:8887"; //
+    public static final String MLAPI = "https://ml-api.uk.ms"; // "http://localhost:8887"; //
 
+    @SidedProxy(modId=MODID, clientSide="com.cheale14.savesync.client.ClientProxy", serverSide="com.cheale14.savesync.common.CommonProxy")
+    public static CommonProxy proxy;
+    
     public static Logger logger;
     public static boolean loadedSync = false;
     public static boolean hamachiRunning = false;
@@ -97,174 +98,66 @@ public class SaveSync
     public static String lanPort = null;
     
     public static boolean isUploading = false;
+    
+    public static boolean HasAPIKey() {
+    	return !(SaveSync.SaveConfig.API_Key == null || SaveSync.SaveConfig.API_Key.equals("none"));
+    }
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
     {
         logger = event.getModLog();
         MinecraftForge.EVENT_BUS.register(this);
+    	if(proxy == null) {
+    		logger.info("Proxy null.");
+    	} else {
+    		logger.info("Proxy: " + proxy.getClass().getName());
+    		MinecraftForge.EVENT_BUS.register(proxy);
+    	}
     }
 
     @EventHandler
     public void init(FMLInitializationEvent event) throws Exception
     {
-    	logger.info("Side: " + event.getSide());
     	logger.info("Repo: https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName);
+    	if(event.getSide() == Side.SERVER) {
+    		logger.info("On dedicated server");
+    		if(!HasAPIKey()) {
+    			logger.error("No API key configured.");
+    			File saves = FMLCommonHandler.instance().getSavesDirectory();
+    			File configFolder = new File(saves, "config");
+    			File saveConfig = new File(configFolder, "savesync.cfg");
+    			throw new Exception("You must set an API key at " + saveConfig.getAbsolutePath());
+    		}
+    		SyncDownload(new SyncProgMonitor());
+    	}
     	//LoadGithub();
     	CheckMods();
     	loadedSync = true;
     }
     
     @EventHandler
-    public void serverStart(FMLServerStartingEvent event) {
-    	event.registerServerCommand(new SyncCommand());
-    	
-    }
-    
-    void warnStartups(ICommandSender sender, MinecraftServer server) {
-    	if(SaveConfig.API_Key == null || "none".equalsIgnoreCase(SaveConfig.API_Key)) {
-    		sender.sendMessage(new TextComponentString("The server has not set their GitHub personal access token for save syncing.")
-    				.setStyle(new Style().setColor(TextFormatting.RED)));
-    	}
-    	if(!loadedSync) {
-    		sender.sendMessage(new TextComponentString("Error: savesync did not load properly - please check logs.")
-    				.setStyle(new Style().setColor(TextFormatting.RED)));
-    	} else {
-	    	File root = server.getWorld(0).getSaveHandler().getWorldDirectory();
-	    	if(root != null) {
-				sender.sendMessage(new TextComponentString(root.getAbsolutePath()));
-				File syncFile = new File(root, SYNCNAME);
-				if(syncFile.exists()) {
-		    		sender.sendMessage(new TextComponentString("World should be saved upon exit (or /sync now) to " + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName)
-	    				.setStyle(new Style().setColor(TextFormatting.GREEN)));
-				} else {
-		    		sender.sendMessage(new TextComponentString("Notice: This save will not be synced to github. To setup, use /sync now [branch]")
-		    				.setStyle(new Style().setColor(TextFormatting.RED)));
-				}
-				
-	    	} else {
-	    		sender.sendMessage(new TextComponentString("[savesync] Could not find data directory?")
-	    				.setStyle(new Style().setColor(TextFormatting.RED)));
-	    	}
-    	}
+    public void serverStarting(FMLServerStartingEvent event) {
+    	proxy.serverStart(event);
     }
     
     @EventHandler
     public void serverStarted(FMLServerStartedEvent event) {
-    	MinecraftServer sender = FMLCommonHandler.instance().getMinecraftServerInstance();
-    	warnStartups(sender, sender);
-    	
+    	proxy.serverStarted(event);
     }
-    
-    @SubscribeEvent
-    public void playerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-    	Side side = FMLCommonHandler.instance().getEffectiveSide();
-    	logger.info(side + " effective");
-    	logger.info(FMLCommonHandler.instance().getSide() + " actual");
-    	if(side != Side.SERVER)
-    		return;
-    	EntityPlayer player = event.player;
-    	warnStartups(player, player.getServer());
-    	if(!loadedSync) {
-    		return; // don't bother with hamachi if we're not syncing
-    	}
-    	if(!SaveConfig.SyncServerConnect) {
-    		return;
-    	}
-    	try {
-			hamachiIP = getHamachiIP();
-			hamachiRunning = hamachiIP != null;
-		} catch (IOException | InterruptedException e) {
-			logger.error(e);
-			return;
-		}
-    	if(!hamachiRunning) {
-    		player.sendMessage(new TextComponentString("Hamachi is not running, perhaps you should turn it on?"));
-    		return;
-    	}
-    	MinecraftServer server = player.getServer();
-    	if(lanPort == null) {
-    		try {
-    			hamachiIP = getHamachiIP();
-    			if(hamachiIP == null) {
-    	    		player.sendMessage(new TextComponentString("Could not determine hamachi IP automatcally. You'll need to do this part yourself"));
-    	    		return;
-    			}
-    	    	if(hamachiIP != null) {
-    	    		hamachiRunning = true;
-    	    		lanPort = server.shareToLAN(GameType.SURVIVAL, true);
-	    			player.sendMessage(new TextComponentString(
-	    					"Opened to lan: " + hamachiIP + ":" + lanPort
-	    					));
-    	    		try {
-        				String s = PutServer();
-	    				if(s != null) {
-	    		    		player.sendMessage(new TextComponentString(s)
-	    		    				.setStyle(new Style().setColor(TextFormatting.RED)));
-	    		    		return;
-	    				}
-    	    		} catch(SSLHandshakeException e) {
-    	    			logger.error(e);
-    	    			player.sendMessage(new TextComponentString(
-						"Failed to set IP on the cloud, you may need to apply security fixes to cacert"
-    	    					).setStyle(new Style().setColor(TextFormatting.RED)));
-    	    			
-    	    		}
-    	    	}
-    	    	player.sendMessage(new TextComponentString("This server should automatically be found on the server list via " + hamachiIP + ":" + 
-    	    			lanPort));
-        	}
-    		catch (IOException | InterruptedException e1) {
-    			// TODO Auto-generated catch block
-    			logger.error(e1);
-	    		player.sendMessage(new TextComponentString("Failed to automatically publish server connection info, check log for error")
-	    				.setStyle(new Style().setColor(TextFormatting.RED)));
-	    		return;
-    		}
-    	}
-    }
-    
+
     @EventHandler
-    public void serverStopping(FMLServerStoppingEvent event) {
-    	logger.info("Server is stopping");
-    	try {
-        	lastLoaded = DimensionManager.getCurrentSaveRootDirectory();
-    	} catch(Exception e) {
-    		logger.error(e);
-    	}
-    }
+	public void serverStopped(FMLServerStoppedEvent event) {
+    	proxy.serverStopped(event);
+	}
+
+    @EventHandler
+	public void serverStopping(FMLServerStoppingEvent event) {
+		proxy.serverStopping(event);
+	}
     
     File lastLoaded = null;
-    @EventHandler
-    public void serverStopped(FMLServerStoppedEvent event) {
-    	logger.info("Server has stopped");
-    	if(isUploading) {
-    		logger.info("GUI hook will handle the sync");
-    		return;
-    	} else {
-    		logger.info("Attempting to sync...");
-    	}
-    	try {
-	    	if(lastLoaded != null) {
-	    		logger.info("Attempting to save only " + lastLoaded.getAbsolutePath());
-	    		try {
-					SyncUpload(lastLoaded, new SyncProgMonitor());
-				} catch (GitAPIException | IOException | URISyntaxException e) {
-					// TODO Auto-generated catch block
-					logger.error(e);
-				}
-	    	} else {
-	    		logger.info("Couldn't determine last world, saving all");
-	        	try {
-	    			SyncUploadAll(new SyncProgMonitor());
-	    		} catch (GitAPIException | IOException | URISyntaxException e) {
-	    			logger.error(e);
-	    		}
-	    	}
-    	} catch(Exception e) {
-    		logger.error(e);
-    	}
-    }
+    
     
     // http://stackoverflow.com/a/19005828/3764804
     private static boolean isProcessRunning(String processName) throws IOException, InterruptedException
@@ -283,53 +176,6 @@ public class SaveSync
             String string = scanner.hasNext() ? scanner.next() : "";
             return string;
     	}
-    }
-    
-    
-    static String getHamachiIP() throws IOException, InterruptedException {
-    	if(!isProcessRunning("hamachi-2-ui.exe") ) {
-    		logger.info("Hamachi is not running, no IP");
-    		return null;
-    	}
-    	Enumeration<NetworkInterface> ints = NetworkInterface.getNetworkInterfaces();
-    	while(ints.hasMoreElements()) {
-    		NetworkInterface netInt = ints.nextElement();
-    		if(!netInt.getDisplayName().contains("Hamachi"))
-    			continue;
-    		Enumeration<InetAddress> addrs = netInt.getInetAddresses();
-    		while(addrs.hasMoreElements()) {
-    			InetAddress addr = addrs.nextElement();
-    			logger.info(netInt.getDisplayName() + ": " + addr.toString());
-    			if(addr.getHostAddress().startsWith("25.")) {
-					return addr.getHostAddress();
-    			}
-    		}
-    	}
-    	return null;
-    }
-    
-    @SubscribeEvent
-    public void guiOpened(GuiOpenEvent event) {
-    	if(!SaveConfig.SyncServerConnect) {
-    		return;
-    	}
-    		
-    	GuiScreen gui = event.getGui();
-    	if(gui == null) {
-    		logger.info("Opening null gui?");
-    		return;
-    	}
-    	if (!(gui instanceof GuiMultiplayer)) {
-    		return;
-    	}
-    	logger.info("Opening multiplayer screen, getting hamachi server");
-    	try {
-			AddServer();
-		} catch(SSLHandshakeException e) {
-			logger.error(e);
-		} catch (IOException e) {
-			logger.error(e);
-		}
     }
     
     public static String PutServer() throws IOException, InterruptedException {
@@ -357,127 +203,28 @@ public class SaveSync
 		return null;
     }
     
-    String getServer() throws IOException {
-    	URL url = new URL(MLAPI + "/mc/hamIp");
-		logger.info("GETing to " + url.toString());
-		HttpURLConnection con = (HttpURLConnection) url.openConnection();
-		con.setRequestMethod("GET");
-		
-		int code = con.getResponseCode();
-		logger.info("Response: " + code);
-		Reader streamReader;
-		if(code > 299) {
-			streamReader = new InputStreamReader(con.getErrorStream());
-		} else {
-			streamReader = new InputStreamReader(con.getInputStream());
-		}
-		StringBuffer content = new StringBuffer();
-		try(BufferedReader bf = new BufferedReader(streamReader)) {
-			String line;
-			while((line = bf.readLine()) != null)
-				content.append(line);
-		}
-		if(code > 299) {
-			logger.error("Failed GET with " + code + ": " + content);
-			return null;
-		}
-		if(code == 204) {
-			return null;
-		}
-		return content.toString();
-    }
     
-    public void AddServer() throws IOException {
-    	if(!SaveConfig.SyncServerConnect) {
-    		return;
+    static String getHamachiIP() throws IOException, InterruptedException {
+    	if(!isProcessRunning("hamachi-2-ui.exe") ) {
+    		logger.info("Hamachi is not running, no IP");
+    		return null;
     	}
-    	String connInfo = getServer();
-    	ListTag<CompoundTag> ls = new ListTag<>(CompoundTag.class);
-    	if(connInfo == null || connInfo.length() == 0) {
-    		logger.info("No server known to be running already.");
-    	} else {
-        	logger.info("Fetched info: " + connInfo);
-	    	CompoundTag serverInfo = new CompoundTag();
-	    	serverInfo.putString("icon", Icon.B64);
-	    	serverInfo.putString("ip", connInfo);
-	    	serverInfo.putString("name", "Omnifactory Hamachi");
-	    	ls.add(serverInfo);
-    	}
-    	CompoundTag innerRoot = new CompoundTag();
-    	innerRoot.put("servers", ls);
-    	NamedTag root = new NamedTag("", innerRoot);
-    	logger.info("Getting file location");
-    	
-    	File serverDat = new File(Minecraft.getMinecraft().mcDataDir, "servers.dat");
-    	logger.info("Writing NBT to " + serverDat.getAbsolutePath());
-    	NBTUtil.write(root, serverDat, false); // false -> uncompressed
-    	logger.info("Done.");
-    }
-    
-    public void CheckMods() throws Exception {
-    	List<SavedMod> mods = new LinkedList<SavedMod>();
-    	for(ModContainer mod : Loader.instance().getModList()) {
-    		mods.add(new SavedMod(mod));
-    	}
-    	for(File world : GetSyncFolders()) {
-    		CheckMods(world, mods);
-    	}
-    }
-    
-    private SavedMod getMod(List<SavedMod> mods, String modId ) {
-    	for(SavedMod mod : mods) {
-    		if(modId.equalsIgnoreCase(mod.Id))
-    			return mod;
-    	}
-    	return null;
-    }
-    
-    // left > right
-    boolean versionIsAhead(String left, String right) {
-    	logger.debug("Comparing " + left + " vs " + right);
-    	Version lV = Version.parse(left);
-    	Version rV = Version.parse(right);
-    	int compare = lV.compareTo(rV);
-    	logger.info(left + " vs " + right + " = " + compare);
-    	return compare > 0;
-    }
-    
-    public void CheckMods(File worldFolder, List<SavedMod> mods) throws Exception {
-    	File modsFile = new File(worldFolder, MODSNAME);
-    	if(!modsFile.exists())
-    		return;
-    	List<SavedMod> storedMods = new LinkedList<SavedMod>();
-    	try (Scanner scanner = new Scanner(modsFile)) {
-    		while(scanner.hasNextLine()) {
-        		storedMods.add(new SavedMod(scanner.nextLine()));
-    		}
-    	}
-    	for(SavedMod hasMod : mods) {
-    		SavedMod neededMod = getMod(storedMods, hasMod.Id);
-    		if(neededMod == null) {
-    			throw new Exception("We are missing mod " + hasMod.toString());
-    		}
-    		if(!neededMod.Version.equalsIgnoreCase(hasMod.Version)) {
-    			if(!versionIsAhead(hasMod.Version, neededMod.Version)) {
-    				throw new Exception(hasMod.Name + " requires version " + neededMod.Version + ", but we have " + hasMod.Version);
+    	Enumeration<NetworkInterface> ints = NetworkInterface.getNetworkInterfaces();
+    	while(ints.hasMoreElements()) {
+    		NetworkInterface netInt = ints.nextElement();
+    		if(!netInt.getDisplayName().contains("Hamachi"))
+    			continue;
+    		Enumeration<InetAddress> addrs = netInt.getInetAddresses();
+    		while(addrs.hasMoreElements()) {
+    			InetAddress addr = addrs.nextElement();
+    			logger.info(netInt.getDisplayName() + ": " + addr.toString());
+    			if(addr.getHostAddress().startsWith("25.")) {
+					return addr.getHostAddress();
     			}
     		}
     	}
+    	return null;
     }
-    
-    public static void WriteMods(File worldFolder) throws IOException {
-    	File modsFile = new File(worldFolder, MODSNAME);
-    	if(!modsFile.exists())
-    		modsFile.createNewFile();
-    	try(FileWriter writer = new FileWriter(modsFile)) {
-	    	for(ModContainer mod : Loader.instance().getModList()) {
-	    		SavedMod sv = new SavedMod(mod);
-	    		writer.write(sv.toString() + "\r\n");
-	    	}
-			writer.close();
-    	}
-    }
-    
     
     
     /*public void LoadGithub() throws NoWorkTreeException, InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException, SyncException {
@@ -505,27 +252,78 @@ public class SaveSync
 		return "https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName + ".git";
     }
     
-    public static void SyncUploadAll(ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
-    	for(File folder : GetSyncFolders()) {
-    		SyncUpload(folder, monitor);
-    	}
-    }
-    
-    public static boolean IsSyncFolder(File worldFolder) {
-    	File syncFile = new File(worldFolder, "SYNC.txt");
-    	return worldFolder.isDirectory() && syncFile.exists() && syncFile.isFile();
-    }
-    public static void WriteSyncBranch(File worldFolder, String branch) throws IOException {
-    	File syncFile = new File(worldFolder, "SYNC.txt");
-    	try(FileWriter writer = new FileWriter(syncFile)) {
-			writer.write(branch);
+    public static void WriteMods(File worldFolder) throws IOException {
+    	File modsFile = new File(worldFolder, SaveSync.MODSNAME);
+    	if(!modsFile.exists())
+    		modsFile.createNewFile();
+    	try(FileWriter writer = new FileWriter(modsFile)) {
+	    	for(ModContainer mod : Loader.instance().getModList()) {
+	    		SavedMod sv = new SavedMod(mod);
+	    		writer.write(sv.toString() + "\r\n");
+	    	}
 			writer.close();
     	}
     }
     
+    private static SavedMod getMod(List<SavedMod> mods, String modId ) {
+    	for(SavedMod mod : mods) {
+    		if(modId.equalsIgnoreCase(mod.Id))
+    			return mod;
+    	}
+    	return null;
+    }
+    
+    // left > right
+    static boolean versionIsAhead(String left, String right) {
+    	logger.debug("Comparing " + left + " vs " + right);
+    	Version lV = Version.parse(left);
+    	Version rV = Version.parse(right);
+    	int compare = lV.compareTo(rV);
+    	logger.info(left + " vs " + right + " = " + compare);
+    	return compare > 0;
+    }
+    
+    public static void CheckMods(File worldFolder, List<SavedMod> mods) throws Exception {
+    	File modsFile = new File(worldFolder, SaveSync.MODSNAME);
+    	if(!modsFile.exists())
+    		return;
+    	List<SavedMod> storedMods = new LinkedList<SavedMod>();
+    	try (Scanner scanner = new Scanner(modsFile)) {
+    		while(scanner.hasNextLine()) {
+        		storedMods.add(new SavedMod(scanner.nextLine()));
+    		}
+    	}
+    	for(SavedMod hasMod : mods) {
+    		SavedMod neededMod = getMod(storedMods, hasMod.Id);
+    		if(neededMod == null) {
+    			throw new Exception("We are missing mod " + hasMod.toString());
+    		}
+    		if(!neededMod.Version.equalsIgnoreCase(hasMod.Version)) {
+    			if(!versionIsAhead(hasMod.Version, neededMod.Version)) {
+    				throw new Exception(hasMod.Name + " requires version " + neededMod.Version + ", but we have " + hasMod.Version);
+    			}
+    		}
+    	}
+    }
+    
+    public static void CheckMods() throws Exception {
+    	List<SavedMod> mods = new LinkedList<SavedMod>();
+    	for(ModContainer mod : Loader.instance().getModList()) {
+    		mods.add(new SavedMod(mod));
+    	}
+    	for(File world : proxy.GetSyncFolders()) {
+    		CheckMods(world, mods);
+    	}
+    }
+    
+    public static void SyncUploadAll(ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
+    	for(File folder : proxy.GetSyncFolders()) {
+    		SyncUpload(folder, monitor);
+    	}
+    }
     
     public static void SyncUpload(File world, ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
-    	String branchName = readFile(new File(world, "SYNC.txt"));
+    	String branchName = readFile(new File(world, SYNCNAME));
     	Git git = null;
     	if(world.listFiles(new FilenameFilter() {
 			@Override
@@ -581,18 +379,6 @@ public class SaveSync
 		git.close();
 		SaveSync.logger.info("Successfully pushed?");
 		isUploading = false;
-    }
-    
-    public static List<File> GetSyncFolders() {
-    	File saveFolder = new File(Minecraft.getMinecraft().mcDataDir, "saves");
-    	List<File> files = new LinkedList<File>();
-    	for(File worldFolder : saveFolder.listFiles()) {
-    		if(IsSyncFolder(worldFolder)) {
-        		logger.info(worldFolder.getPath());
-        		files.add(worldFolder);
-    		}
-    	}
-    	return files;
     }
     
     public static void FixNBT(File worldFolder) throws IOException {
@@ -652,8 +438,20 @@ public class SaveSync
     	}
     }
     
+    public static boolean IsSyncFolder(File worldFolder) {
+    	File syncFile = new File(worldFolder, SYNCNAME);
+    	return worldFolder.isDirectory() && syncFile.exists() && syncFile.isFile();
+    }
+    public static void WriteSyncBranch(File worldFolder, String branch) throws IOException {
+    	File syncFile = new File(worldFolder, SYNCNAME);
+    	try(FileWriter writer = new FileWriter(syncFile)) {
+			writer.write(branch);
+			writer.close();
+    	}
+    }
+    
     public static void SyncDownload(File world, ProgressMonitor monitor) throws IOException, NoWorkTreeException, GitAPIException, SyncException, URISyntaxException {
-    	String branchName = readFile(new File(world, "SYNC.txt"));
+    	String branchName = readFile(new File(world, SYNCNAME));
     	Git git = Git.open(world);
 		/*git.fetch()
     		.setCredentialsProvider(auth())
@@ -698,15 +496,14 @@ public class SaveSync
     }
     
     static void CloneDefaultBranch(ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
-		File saveFolder = new File(Minecraft.getMinecraft().mcDataDir, "saves");
-		File world = new File(saveFolder, SaveConfig.RepositoryName + "-main");
+		File world = proxy.GetDefaultBranchFolder();
 		SyncClone(world, "main", monitor);
     }
     
     public static void SyncDownload(ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, NoWorkTreeException, IOException, SyncException {
     	// Find save with 'SYNC.txt' in folder, 
     	// If none exists, freshly download master branch.
-    	List<File> files = GetSyncFolders();
+    	List<File> files = proxy.GetSyncFolders();
     	if(files.size() == 0) {
     		logger.warn("No sync folders exist, so cloning default branch...");
     		CloneDefaultBranch(monitor);
@@ -714,7 +511,7 @@ public class SaveSync
     	}
     	boolean hasdefault = false;
     	for(File file : files) {
-    		if(file.getName().endsWith("main")) {
+    		if(file.getName().endsWith("main") || file.getName().equals("world")) {
     			hasdefault = true;
     			break;
     		}
@@ -733,7 +530,7 @@ public class SaveSync
     {
         if (event.getModID().equals(MODID))
         {
-        	if(SaveConfig.API_Key == null || SaveConfig.API_Key.equals("none")) {
+        	if(!HasAPIKey()) {
         		logger.warn("Config cannot be changed to null API key");
         		event.setResult(Result.DENY);
         	}

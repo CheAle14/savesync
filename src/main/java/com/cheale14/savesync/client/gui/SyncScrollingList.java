@@ -1,4 +1,4 @@
-package com.cheale14.savesync.gui;
+package com.cheale14.savesync.client.gui;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;

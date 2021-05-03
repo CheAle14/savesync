@@ -1,4 +1,4 @@
-package com.cheale14.savesync.gui;
+package com.cheale14.savesync.client.gui;
 
 import java.io.IOException;
 import java.util.LinkedList;
