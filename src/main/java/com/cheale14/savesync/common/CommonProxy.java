@@ -17,6 +17,7 @@ import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.lib.ProgressMonitor;
 
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
+import com.feed_the_beast.mods.ftbbackups.BackupEvent;
 
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
@@ -170,6 +171,25 @@ public class CommonProxy {
     		}
     	}
     }
+	
+	@SubscribeEvent
+	public void backupDone(BackupEvent.Post event) {
+		if(event.getError() != null) {
+			logger.info("Error occured during backup, so not autopushing.");
+			return;
+		}
+		File worldFolder = new File(FMLCommonHandler.instance().getSavesDirectory(), "world");
+		if(!SaveSync.IsSyncFolder(worldFolder)) {
+			logger.info("Not sync folder, not acting.");
+			return;
+		}
+		logger.info("Automatically syncing as backup has been done.");
+		try {
+			SaveSync.SyncUpload(worldFolder, new SyncProgMonitor());
+		} catch (GitAPIException | IOException | URISyntaxException e) {
+			logger.error(e);
+		}
+	}
     
     public List<File> GetSyncFolders() {
     	List<File> ls = new LinkedList<File>();
@@ -189,4 +209,6 @@ public class CommonProxy {
     public File GetDefaultBranchFolder() {
     	return new File(GetSaveFolder(), "world");
     }
+    
+    
 }

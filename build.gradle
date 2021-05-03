@@ -70,7 +70,6 @@ dependencies {
 
 
 	compile 'com.github.Querz:NBT:6.0'
-    
 
 }
 

@@ -555,6 +555,10 @@ public class SaveSync
     	@Name("Server Sync")
     	@Comment("Sends server connection info to MLAPI and sets server list accordingly")
     	public static boolean SyncServerConnect = true;
+    	
+    	@Name("Close UI")
+    	@Comment("Automatically close sync UI if no errors occur")
+    	public static boolean CloseUIOnSuccess = true;
     }
     
     public static class NameFilter implements FilenameFilter {

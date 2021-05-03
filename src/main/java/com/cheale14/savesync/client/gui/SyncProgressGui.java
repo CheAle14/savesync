@@ -9,6 +9,7 @@ import org.lwjgl.input.Mouse;
 
 import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.SyncThread;
+import com.cheale14.savesync.common.SaveSync.SaveConfig;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
@@ -17,28 +18,40 @@ import net.minecraft.client.gui.GuiScreen;
 
 public class SyncProgressGui extends GuiScreen {
 	
-	public SyncProgressGui(GuiScreen parent, SyncType type, File file) {
-		mc = parent.mc;
+	public SyncProgressGui(GuiScreen parent, SyncType type, File file, boolean closeOnEnd) {
+		mc = parent != null ? parent.mc : Minecraft.getMinecraft();
 		Type = type;
 		parentScreen = parent;
 		world = file;
+		closeOnNormalEnd = closeOnEnd;
 	}
 	public SyncProgressGui(GuiScreen parent, SyncType type) {
-		this(parent, type, null);
+		this(parent, type, null, SaveConfig.CloseUIOnSuccess);
+	}
+	public SyncProgressGui(GuiScreen parent, SyncType type, File file) {
+		this(parent, type, file, SaveConfig.CloseUIOnSuccess);
+	}
+	public SyncProgressGui(GuiScreen parent, SyncType type, boolean closeOnEnd) {
+		this(parent, type, null, closeOnEnd);
 	}
 	
 	public SyncType Type;
 	Minecraft mc;
 	GuiScreen parentScreen;
 	GuiButton cancelButton;
+	GuiButton doneButton;
 	SyncGuiLog log;
 	SyncThread thread;
+	boolean closeOnNormalEnd;
 	File world;
 	
 	@Override
 	public void initGui() {
 		cancelButton = new GuiButton(1, 1, 1, "Cancel " + (Type.Pull ? "Download" : "Upload"));
 		this.buttonList.add(cancelButton);
+		doneButton = new GuiButton(2, cancelButton.getButtonWidth() + 5, 1, "Close");
+		doneButton.visible = false;
+		this.buttonList.add(doneButton);
 		log = new SyncGuiLog(this, this.width - 30, 10);
 		if(thread == null) {
 			Start();
@@ -61,6 +74,11 @@ public class SyncProgressGui extends GuiScreen {
 				Minecraft.getMinecraft().displayGuiScreen(parentScreen);
 				return;
 			}
+		} else if(!thread.isAlive() && !thread.hasError()) {
+			SaveSync.logger.info("Closing UI as success without issues.");
+			thread = null;
+			Minecraft.getMinecraft().displayGuiScreen(parentScreen);
+			return;
 		}
 		
 		super.drawScreen(mouseX, mouseY, partialTicks);
@@ -69,13 +87,18 @@ public class SyncProgressGui extends GuiScreen {
 	int stopCount = -1;
 	@Override
 	protected void actionPerformed(GuiButton button) throws IOException {
-		if(!button.enabled)
-			return;
+		if(!button.enabled) return;
+		if(!button.visible) return;
+		
 		if(button.id == cancelButton.id) {
 			button.enabled = false;
 			button.displayString = "Stopping";
 			stopCount = 0;
 			thread.Cancel();
+		} else if(button.id == doneButton.id) {
+			SaveSync.logger.info("Closing!");
+			thread = null;
+			Minecraft.getMinecraft().displayGuiScreen(parentScreen);
 		}
 	}
 	
@@ -99,8 +122,16 @@ public class SyncProgressGui extends GuiScreen {
 		}
 	}
 	
+	public boolean closed = false;
+	public boolean ended() {
+		if(thread == null)
+			return true;
+		return !thread.isAlive();
+	}
+	
 	@Override
 	public void onGuiClosed() {
+		closed = true;
 		if(thread != null) {
 			thread.Cancel();
 		}
@@ -111,7 +142,8 @@ public class SyncProgressGui extends GuiScreen {
 	}
 	
 	public void SetButtonDone() {
-		this.cancelButton.displayString = "Close - Done";
+		this.cancelButton.enabled = false;
+		this.doneButton.visible = true;
 	}
 
 	
@@ -131,6 +163,9 @@ public class SyncProgressGui extends GuiScreen {
 	}
 	
 	public void Start() {
+		if(log != null) {
+			log.Clear();
+		}
 		thread = new SyncThread(this, world);
 		thread.start();
 	}

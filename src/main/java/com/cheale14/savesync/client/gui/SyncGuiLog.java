@@ -40,6 +40,10 @@ public class SyncGuiLog extends SyncScrollingList {
 			}
 		}
 	}
+	
+	public void Clear() {
+		messages.clear();
+	}
 
 	@Override
 	protected int getSize() {

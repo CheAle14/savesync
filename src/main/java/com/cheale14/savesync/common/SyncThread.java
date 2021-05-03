@@ -16,12 +16,19 @@ public class SyncThread extends Thread {
 	private SyncProgressGui Gui;
 	private SyncType Type;
 	private File Folder;
+	private boolean didError = false;
+	
 	private boolean doCancel = false;
 	public SyncThread(SyncProgressGui gui, File worldFolder) {
 		Gui = gui;
 		Type = gui.Type;
 		Folder = worldFolder;
 	}
+	
+	public boolean hasError() {
+		return didError;
+	}
+	
 	
 	public void Cancel() {
 		doCancel = true;
@@ -49,6 +56,7 @@ public class SyncThread extends Thread {
 		} catch(Exception e) {
 			Gui.Append(e.toString());
 			Gui.Append("ERROR");
+			didError = true;
 		}
 
 		

@@ -4,6 +4,9 @@ import com.cheale14.savesync.common.CommonProxy;
 import com.cheale14.savesync.common.Icon;
 import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
+import com.cheale14.savesync.common.SyncThread;
+import com.feed_the_beast.mods.ftbbackups.BackupEvent;
+import com.mojang.realmsclient.dto.RealmsServer.McoServerComparator;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -213,6 +216,31 @@ public class ClientProxy extends CommonProxy {
     	NBTUtil.write(root, serverDat, false); // false -> uncompressed
     	logger.info("Done.");
     }
+	
+	static SyncProgressGui syncGui;
+	
+	@SubscribeEvent
+	@Override
+	public void backupDone(BackupEvent.Post event) {
+		if(event.getError() != null) {
+			logger.info("Error occured during backup, so not autopushing.");
+			return;
+		}
+		if(syncGui != null) {
+			if(syncGui.closed) {
+				syncGui = null;
+			} else {
+				logger.info("Previous syncGui has not closed?");
+				logger.info("We'll stop - something's going on here.");
+				return;
+			}
+		}
+		logger.info("Automatically syncing as backup has been done.");
+		Minecraft mc = Minecraft.getMinecraft();
+		GuiScreen parent = mc.currentScreen;
+		SyncProgressGui gui = new SyncProgressGui(parent, SyncType.UPLOAD_ALL, true);
+		mc.displayGuiScreen(gui);
+	}
 	
 	@Override
 	public List<File> GetSyncFolders() {
