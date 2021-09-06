@@ -30,33 +30,37 @@ public class SyncReplaceIngameMenu extends GuiIngameMenu {
 	
 	@Override
     protected void actionPerformed(GuiButton button) throws IOException {
-    	if(button.id != 1) {
-    		super.actionPerformed(button);
-    		return;
-    	}
-    	SaveSync.isUploading = true;
-    	boolean flag = this.mc.isIntegratedServerRunning();
-        boolean flag1 = this.mc.isConnectedToRealms();
-        button.enabled = false;
-        File oldSave = this.mc.world.getSaveHandler().getWorldDirectory();
-        SyncType type = oldSave == null ? SyncType.UPLOAD_ALL : SyncType.UPLOAD_ONE;
-        this.mc.world.sendQuittingDisconnectingPacket();
-        this.mc.loadWorld((WorldClient)null);
-
-        if (flag)
-        {
-        	SyncProgressGui sync = new SyncProgressGui(new GuiMainMenu(), type, oldSave);
-            this.mc.displayGuiScreen(sync);
-        }
-        else if (flag1)
-        {
-            RealmsBridge realmsbridge = new RealmsBridge();
-            realmsbridge.switchToRealms(new GuiMainMenu());
-        }
-        else
-        {
-        	SyncProgressGui sync = new SyncProgressGui(new GuiMultiplayer(new GuiMainMenu()), type, oldSave);
-            this.mc.displayGuiScreen(sync);
-        }
+		if(button.id == 1) {			
+	    	SaveSync.isUploading = true;
+	    	boolean flag = this.mc.isIntegratedServerRunning();
+	        boolean flag1 = this.mc.isConnectedToRealms();
+	        button.enabled = false;
+	        File oldSave = this.mc.world.getSaveHandler().getWorldDirectory();
+	        SyncType type = oldSave == null ? SyncType.UPLOAD_ALL : SyncType.UPLOAD_ONE;
+	        this.mc.world.sendQuittingDisconnectingPacket();
+	        this.mc.loadWorld((WorldClient)null);
+	
+	        if (flag)
+	        {
+	        	SyncProgressGui sync = new SyncProgressGui(new GuiMainMenu(), type, oldSave);
+	            this.mc.displayGuiScreen(sync);
+	        }
+	        else if (flag1)
+	        {
+	            RealmsBridge realmsbridge = new RealmsBridge();
+	            realmsbridge.switchToRealms(new GuiMainMenu());
+	        }
+	        else
+	        {
+	        	SyncProgressGui sync = new SyncProgressGui(new GuiMultiplayer(new GuiMainMenu()), type, oldSave);
+	            this.mc.displayGuiScreen(sync);
+	        }
+		} else if (button.id == 7) {
+			// open to lan
+			SyncPublishGui publish = new SyncPublishGui(this);
+			this.mc.displayGuiScreen(publish);
+		} else {
+			super.actionPerformed(button);
+		}
     }
 }

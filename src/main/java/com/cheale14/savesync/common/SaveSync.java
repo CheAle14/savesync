@@ -76,6 +76,7 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
+
 @Mod(modid = SaveSync.MODID, name = SaveSync.NAME, version = SaveSync.VERSION)
 public class SaveSync
 {
@@ -86,7 +87,26 @@ public class SaveSync
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
     
-    public static final String MLAPI = "https://ml-api.uk.ms"; // "http://localhost:8887"; //
+    public static final String MLAPI =  "http://localhost:8887"; // "https://ml-api.uk.ms"; //
+    
+    public static String WS_URI(boolean client) {
+    	String url;
+    	if(MLAPI.startsWith("https")) {
+    		url = "wss://ml-api.uk.ms";
+    	} else {
+        	url = "ws://localhost:4650";
+    	}
+    	url += "/masterlist?";
+    	if(client) {
+    		url += "client=true&";
+    	}
+    	url += "game=minecraft&";
+    	
+    	url += "mode=" + SaveConfig.MLGameMode;
+    	
+    	return url;
+    }
+    
 
     @SidedProxy(modId=MODID, clientSide="com.cheale14.savesync.client.ClientProxy", serverSide="com.cheale14.savesync.common.CommonProxy")
     public static CommonProxy proxy;
@@ -566,6 +586,10 @@ public class SaveSync
     	@Name("Check Mod Differences")
     	@Comment("Check whether the synced save has different mods to what we have")
     	public static boolean CheckMods = false;
+    	
+    	@Name("ML Game Mode")
+    	@Comment("The game mode used to categorise the server on the masterlist")
+    	public static String MLGameMode = "modded";
     }
     
     public static class NameFilter implements FilenameFilter {

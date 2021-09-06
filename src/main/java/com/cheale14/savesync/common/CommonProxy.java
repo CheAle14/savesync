@@ -3,6 +3,7 @@ package com.cheale14.savesync.common;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,8 +17,12 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.lib.ProgressMonitor;
 
+import com.cheale14.savesync.client.WSClient;
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
+import com.cheale14.savesync.server.commands.SyncCommand;
 import com.feed_the_beast.mods.ftbbackups.BackupEvent;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
@@ -26,6 +31,7 @@ import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.GameType;
+import net.minecraftforge.event.CommandEvent;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
@@ -97,9 +103,49 @@ public class CommonProxy {
 
 	public void serverStopping(FMLServerStoppingEvent event) {
     	logger.info("Server stopping.");
-		
 	}
 	
+	
+	
+	private WSClient websocket;
+	private String wsId;
+	
+	public void PublishServer(JsonObject serverData) {
+		if(wsId != null) {
+			serverData.addProperty("id", wsId);
+		}
+		URI uri = URI.create(SaveSync.WS_URI(false));
+		websocket = new WSClient(uri, new IWebSocketHandler() {
+			@Override
+			public void OnPacket(WSPacket packet) {
+				if(packet.Id().equals("UpsertServer")) {
+					wsId = packet.Content().getAsString();
+				}
+			}
+			@Override
+			public void OnOpen() {
+				WSPacket packet = new WSPacket();
+				packet.Id("UpsertServer");
+				packet.Content(serverData);
+				Gson gson = new Gson();
+				websocket.send(gson.toJson(packet));
+			}
+			@Override
+			public void OnClose(int errorCode, String reason) {
+			}
+			@Override
+			public void OnError(Exception error) {
+			}
+			
+		});
+		websocket.connect();
+	}
+	
+	@SubscribeEvent
+	public void commandExecuted(CommandEvent event) {
+		event
+		event.getSender().getCommandSenderEntity().world.isRemote
+	}
 	
 	
 	@SubscribeEvent

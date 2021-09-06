@@ -22,6 +22,7 @@ import javax.net.ssl.SSLHandshakeException;
 
 import com.cheale14.savesync.client.gui.SyncProgressGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui.SyncType;
+import com.cheale14.savesync.client.gui.SyncReplaceGuiMP;
 import com.cheale14.savesync.client.gui.SyncReplaceIngameMenu;
 
 import net.minecraft.client.Minecraft;
@@ -68,6 +69,10 @@ public class ClientProxy extends CommonProxy {
 				return;
 			}
 			renderIngameMenu((GuiIngameMenu)gui);
+		} else if(gui instanceof GuiMultiplayer) {
+			if(gui instanceof SyncReplaceGuiMP)
+				return;
+			renderMultiplayerMenu((GuiMultiplayer)gui);
 		}
 		
 	}
@@ -86,6 +91,12 @@ public class ClientProxy extends CommonProxy {
 			igm.mc.displayGuiScreen(new SyncReplaceIngameMenu());
 	}
 	
+	void renderMultiplayerMenu(GuiMultiplayer mp) {
+		if(SaveConfig.SyncServerConnect) {
+			mp.mc.displayGuiScreen(new SyncReplaceGuiMP(null));
+		}
+	}
+	
 	boolean didSync = false;
 	void renderSPScreen(GuiWorldSelection sp) {
 		logger.info("DidSync: " + didSync);
@@ -100,6 +111,7 @@ public class ClientProxy extends CommonProxy {
 			sp.mc.displayGuiScreen(syncGui);
 		}
 	}
+	
 	
 	static boolean didConfig = false;
 	void renderModList(GuiModList ml) {
@@ -136,7 +148,7 @@ public class ClientProxy extends CommonProxy {
 		renderer.drawString(text, 1, 1, colour);
 	}
 	
-	@SubscribeEvent
+	/*@SubscribeEvent
     public void guiOpened(GuiOpenEvent event) {
     	if(!SaveConfig.SyncServerConnect) {
     		return;
@@ -158,7 +170,7 @@ public class ClientProxy extends CommonProxy {
 		} catch (IOException e) {
 			logger.error(e);
 		}
-    }
+    }*/
 	
 	String getServer() throws IOException {
     	URL url = new URL(SaveSync.MLAPI + "/mc/hamIp");

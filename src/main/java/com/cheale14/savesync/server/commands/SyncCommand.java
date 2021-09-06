@@ -1,4 +1,4 @@
-package com.cheale14.savesync.common;
+package com.cheale14.savesync.server.commands;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
+
+import com.cheale14.savesync.common.MCCommandMonitor;
+import com.cheale14.savesync.common.SaveSync;
 
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;

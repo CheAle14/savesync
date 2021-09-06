@@ -68,6 +68,7 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
 	compile group: 'org.eclipse.jgit', name: 'org.eclipse.jgit', version: '5.11.0.202103091610-r'
 
+	compile "org.java-websocket:Java-WebSocket:1.5.1"
 
 	compile 'com.github.Querz:NBT:6.0'
 
