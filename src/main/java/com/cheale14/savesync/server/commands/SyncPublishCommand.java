@@ -12,9 +12,12 @@ import net.minecraft.server.dedicated.DedicatedServer;
 public class SyncPublishCommand extends CommandPublishLocalServer {
 	
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
-    	if(server instanceof DedicatedServer) {
+
+
+    	if(sender.getEntityWorld().isRemote) {
     		return;
     	}
+    		
 
     	Minecraft mc = Minecraft.getMinecraft();
     	mc.displayGuiScreen(new SyncPublishGui(mc.currentScreen));

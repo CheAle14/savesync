@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import org.lwjgl.input.Keyboard;
 
@@ -70,6 +71,8 @@ public class SyncPublishGui extends GuiShareToLan {
 		txtGameKind.setEnabled(false);
 		
 		super.initGui();
+		this.addButton(new GuiButton(10, this.width / 2 + 5, 150, 70, 20, "Hamachi"));
+		this.addButton(new GuiButton(11, this.width / 2 + 75, 150, 70, 20, "External"));
 	}
 	
 
@@ -123,7 +126,13 @@ public class SyncPublishGui extends GuiShareToLan {
 	@Override
     protected void actionPerformed(GuiButton button) throws IOException {
     	if(button.id == 101) {
-    		InetAddress addr = InetAddress.getByName(txtIpAddress.getText());
+    		InetAddress addr = null;
+    		try {
+
+        		addr = InetAddress.getByName(txtIpAddress.getText());
+    		} catch(UnknownHostException e) {
+    			SaveSync.logger.error(e);
+    		}
     		if(addr == null) {
     			txtIpAddress.setFocused(true);
     			txtIpAddress.setTextColor(Color.red.getRGB());
@@ -155,6 +164,24 @@ public class SyncPublishGui extends GuiShareToLan {
             	this.mc.ingameGUI.getChatGUI().printChatMessage(
             			new TextComponentString("Published server details on MLAPI."));
             }
+    	} else if(button.id == 10) {
+    		// hamachi
+    		String ip;
+			try {
+				ip = SaveSync.getHamachiIP();
+			} catch (Exception e) {
+				SaveSync.logger.error(e);
+				ip = e.getMessage();
+			}
+    		if(ip == null) {
+    			ip = "failed to get";
+    		}
+    		txtIpAddress.setText(ip);
+    	} else if(button.id == 11) {
+    		// external
+    		
+    		// TODO: add external lookup of IP, e.g. via https://icanhazip.com or similar
+    		
     	} else {
     		super.actionPerformed(button);
     	}

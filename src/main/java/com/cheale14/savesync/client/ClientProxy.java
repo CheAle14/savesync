@@ -112,21 +112,9 @@ public class ClientProxy extends CommonProxy {
 		}
 	}
 	
-	
-	static boolean didConfig = false;
+
+
 	void renderModList(GuiModList ml) {
-		if(!SaveSync.HasAPIKey()) {
-			if(didConfig) {
-				logger.info("No API key set, but already displayed config. Not redirecting.");
-				return;
-			}
-			didConfig = true;
-			logger.info("Must set config");
-			ModContainer mod = findModIndex();
-            IModGuiFactory guiFactory = FMLClientHandler.instance().getGuiFactoryFor(mod);
-            GuiScreen newScreen = guiFactory.createConfigGui(ml);
-            ml.mc.displayGuiScreen(newScreen);
-		}
 	}
 	
 	void renderMainMenu(GuiMainMenu mm) {
@@ -139,10 +127,17 @@ public class ClientProxy extends CommonProxy {
 			colour = 4;
 			text = "Sync: Failed to load.";
 		}
-		if(!SaveSync.HasAPIKey()) {
+		if(!SaveSync.HasAPIKey() && !SaveSync.hasRedirectedToConfig) {
+			SaveSync.hasRedirectedToConfig = true;
 			logger.info("Trying to show config... let's see how this works");
 			GuiModList mods = new GuiModList(mm);
-			mm.mc.displayGuiScreen(mods);
+			
+
+			ModContainer mod = findModIndex();
+            IModGuiFactory guiFactory = FMLClientHandler.instance().getGuiFactoryFor(mod);
+            GuiScreen newScreen = guiFactory.createConfigGui(mods);
+			
+			mm.mc.displayGuiScreen(newScreen);
 			return;
 		}
 		renderer.drawString(text, 1, 1, colour);

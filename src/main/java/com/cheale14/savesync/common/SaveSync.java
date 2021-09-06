@@ -14,6 +14,7 @@ import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.common.config.Config.Comment;
 import net.minecraftforge.common.config.Config.Name;
+import net.minecraftforge.common.config.Config.RangeInt;
 import net.minecraftforge.common.config.Config.Type;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent.OnConfigChangedEvent;
 import net.minecraftforge.fml.common.FMLCommonHandler;
@@ -77,7 +78,7 @@ import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 
-@Mod(modid = SaveSync.MODID, name = SaveSync.NAME, version = SaveSync.VERSION)
+@Mod(modid = SaveSync.MODID, name = SaveSync.NAME, version = SaveSync.VERSION, acceptableRemoteVersions = "*")
 public class SaveSync
 {
     public static final String MODID = "savesync";
@@ -116,6 +117,8 @@ public class SaveSync
     public static boolean hamachiRunning = false;
     public static String hamachiIP = null;
     public static String lanPort = null;
+    
+    public static boolean hasRedirectedToConfig = false;
     
     public static boolean isUploading = false;
     
@@ -224,7 +227,7 @@ public class SaveSync
     }
     
     
-    static String getHamachiIP() throws IOException, InterruptedException {
+    public static String getHamachiIP() throws IOException, InterruptedException {
     	if(!isProcessRunning("hamachi-2-ui.exe") ) {
     		logger.info("Hamachi is not running, no IP");
     		return null;
@@ -547,19 +550,16 @@ public class SaveSync
     	}
     }
     
-    
+
     @SubscribeEvent
     public void onConfigChangedEvent(OnConfigChangedEvent event)
     {
         if (event.getModID().equals(MODID))
         {
-        	if(!HasAPIKey()) {
-        		logger.warn("Config cannot be changed to null API key");
-        		event.setResult(Result.DENY);
-        	}
+        	ConfigManager.sync(MODID, Type.INSTANCE);
         }
     }
-    
+
     
     @Config(modid = MODID, type = Type.INSTANCE, name = MODID)
     public static class SaveConfig
@@ -590,6 +590,24 @@ public class SaveSync
     	@Name("ML Game Mode")
     	@Comment("The game mode used to categorise the server on the masterlist")
     	public static String MLGameMode = "modded";
+    	
+    	@Name("MLAPI Data")
+    	@Comment("For dedicated servers only! Controls information sent to MLAPI")
+    	public static DedicatedServerData MLAPIData = new DedicatedServerData();
+    	
+    	static class DedicatedServerData {
+    		@Name("Name")
+    		public static String Name = "name";
+    		
+    		@Name("IP Address")
+    		public static String IPAddress = "195.168.1.1";
+    		
+    		@Name("Port")
+    		@RangeInt(min = 1, max = 65565)
+    		public static Integer Port = 25565;
+    		
+    		
+    	}
     }
     
     public static class NameFilter implements FilenameFilter {

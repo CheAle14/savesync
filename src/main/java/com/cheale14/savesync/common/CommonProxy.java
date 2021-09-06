@@ -20,11 +20,15 @@ import org.eclipse.jgit.lib.ProgressMonitor;
 import com.cheale14.savesync.client.WSClient;
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
 import com.cheale14.savesync.server.commands.SyncCommand;
+import com.cheale14.savesync.server.commands.SyncPublishCommand;
 import com.feed_the_beast.mods.ftbbackups.BackupEvent;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import net.minecraft.command.CommandHandler;
+import net.minecraft.command.ICommand;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.command.server.CommandPublishLocalServer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.Style;
@@ -86,6 +90,27 @@ public class CommonProxy {
     	logger.info("Server started.");
     	MinecraftServer sender = FMLCommonHandler.instance().getMinecraftServerInstance();
     	warnStartups(sender, sender);
+
+    	if(sender.isDedicatedServer()) {
+    		if(SaveConfig.SyncServerConnect) {
+    			if(SaveConfig.MLAPIData == null) {
+    				logger.error("MLAPI data is empty despite config option indicating we should sync. Please correct.");
+    				return;
+    			}
+    			JsonObject obj = new JsonObject();
+    			obj.addProperty("name", SaveConfig.MLAPIData.Name);
+    			obj.addProperty("ip", SaveConfig.MLAPIData.IPAddress);
+    			obj.addProperty("port", SaveConfig.MLAPIData.Port);
+    			obj.addProperty("game", "minecraft");
+    			obj.addProperty("mode", SaveConfig.MLGameMode);
+    			
+    			this.PublishServer(obj);
+    		}
+    		
+    	} else {
+	        CommandHandler ch = (CommandHandler) sender.getCommandManager();
+	        ch.registerCommand(new SyncPublishCommand());
+		}
     }
 
 	public void serverStopped(FMLServerStoppedEvent event) {
@@ -132,6 +157,7 @@ public class CommonProxy {
 			}
 			@Override
 			public void OnClose(int errorCode, String reason) {
+				
 			}
 			@Override
 			public void OnError(Exception error) {
@@ -143,8 +169,8 @@ public class CommonProxy {
 	
 	@SubscribeEvent
 	public void commandExecuted(CommandEvent event) {
-		event
-		event.getSender().getCommandSenderEntity().world.isRemote
+		ICommand cmd = event.getCommand();
+		logger.info("Executing '/" + cmd.getName() + "' - " + cmd.getClass().getName());
 	}
 	
 	
@@ -159,7 +185,7 @@ public class CommonProxy {
     		return;
     	EntityPlayer player = event.player;
     	warnStartups(player, player.getServer());
-    	if(!SaveSync.loadedSync) {
+    	/*if(!SaveSync.loadedSync) {
     		return; // don't bother with hamachi if we're not syncing
     	}
     	if(!SaveConfig.SyncServerConnect) {
@@ -190,6 +216,7 @@ public class CommonProxy {
 	    			player.sendMessage(new TextComponentString(
 	    					"Opened to lan: " + SaveSync.hamachiIP + ":" + SaveSync.lanPort
 	    					));
+	    			this.PublishServer(null);
     	    		try {
         				String s = SaveSync.PutServer();
 	    				if(s != null) {
@@ -215,7 +242,7 @@ public class CommonProxy {
 	    				.setStyle(new Style().setColor(TextFormatting.RED)));
 	    		return;
     		}
-    	}
+    	}*/
     }
 	
 	@SubscribeEvent
