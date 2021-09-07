@@ -7,6 +7,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
@@ -138,7 +140,11 @@ public class CommonProxy {
     			return;
     		}
     		
-    		this.PublishServer(obj, null);
+    		try {
+				this.PublishServer(obj, null);
+			} catch (KeyManagementException | NoSuchAlgorithmException e) {
+				logger.error(e);
+			}
     	} else {
 	        CommandHandler ch = (CommandHandler) sender.getCommandManager();
 	        ch.registerCommand(new SyncPublishCommand());
@@ -167,7 +173,7 @@ public class CommonProxy {
 	private WSClient websocket;
 	private String wsId;
 	
-	public void PublishServer(JsonObject serverData, IWebSocketHandler handler) {
+	public void PublishServer(JsonObject serverData, IWebSocketHandler handler) throws KeyManagementException, NoSuchAlgorithmException {
 		if(wsId != null) {
 			serverData.addProperty("id", wsId);
 		}
@@ -177,7 +183,10 @@ public class CommonProxy {
 			@Override
 			public void OnPacket(WSPacket packet) {
 				if(packet.Id().equals("UpsertServer")) {
-					wsId = packet.Content().getAsString();
+					if(packet.Content() instanceof JsonObject) {
+
+						wsId = ((JsonObject)packet.Content()).get("id").getAsString();
+					}
 				}
 				if(handler != null)
 					handler.OnPacket(packet);

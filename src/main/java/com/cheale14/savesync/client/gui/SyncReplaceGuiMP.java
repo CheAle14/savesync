@@ -2,6 +2,8 @@ package com.cheale14.savesync.client.gui;
 
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 
 import com.cheale14.savesync.client.WSClient;
 import com.cheale14.savesync.common.IWebSocketHandler;
@@ -25,8 +27,12 @@ public class SyncReplaceGuiMP extends GuiMultiplayer implements IWebSocketHandle
 		// TODO Auto-generated constructor stub
 		
 		URI uri = URI.create(SaveSync.WS_URI(true));
-		ws = new WSClient(uri, this);
-		ws.connect();
+		try {
+			ws = new WSClient(uri, this);
+			ws.connect();
+		} catch (KeyManagementException | NoSuchAlgorithmException e) {
+			SaveSync.logger.error(e);
+		}
 	}
 	
 	

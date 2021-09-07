@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 
 import org.lwjgl.input.Keyboard;
 
@@ -166,37 +168,41 @@ public class SyncPublishGui extends GuiShareToLan {
             	JsonObject obj = getJson();
             	obj.addProperty("port", s);
 
-            	SaveSync.proxy.PublishServer(obj, new IWebSocketHandler() {
+            	try {
+					SaveSync.proxy.PublishServer(obj, new IWebSocketHandler() {
 
-					@Override
-					public void OnPacket(WSPacket packet) {
-		            	mc.ingameGUI.getChatGUI().printChatMessage(
-		            			new TextComponentString(TextFormatting.GREEN + "Server should now be on the masterlist."));
-					}
+						@Override
+						public void OnPacket(WSPacket packet) {
+					    	mc.ingameGUI.getChatGUI().printChatMessage(
+					    			new TextComponentString(TextFormatting.GREEN + "Server should now be on the masterlist."));
+						}
 
-					@Override
-					public void OnOpen() {
-		            	mc.ingameGUI.getChatGUI().printChatMessage(
-		            			new TextComponentString("Connection established, sending details"));
-					}
+						@Override
+						public void OnOpen() {
+					    	mc.ingameGUI.getChatGUI().printChatMessage(
+					    			new TextComponentString("Connection established, sending details"));
+						}
 
-					@Override
-					public void OnClose(int errorCode, String reason) {
-						// TODO Auto-generated method stub
+						@Override
+						public void OnClose(int errorCode, String reason) {
+							// TODO Auto-generated method stub
 
-		            	mc.ingameGUI.getChatGUI().printChatMessage(
-		            			new TextComponentString("Connection closed: " + errorCode + ", " + reason));
-					}
+					    	mc.ingameGUI.getChatGUI().printChatMessage(
+					    			new TextComponentString("Connection closed: " + errorCode + ", " + reason));
+						}
 
-					@Override
-					public void OnError(Exception error) {
-						// TODO Auto-generated method stub
+						@Override
+						public void OnError(Exception error) {
+							// TODO Auto-generated method stub
 
-		            	mc.ingameGUI.getChatGUI().printChatMessage(
-		            			new TextComponentString(TextFormatting.RED + "Connection errored: " + error.toString()));
-					}
-            		
-            	});
+					    	mc.ingameGUI.getChatGUI().printChatMessage(
+					    			new TextComponentString(TextFormatting.RED + "Connection errored: " + error.toString()));
+						}
+						
+					});
+				} catch (KeyManagementException | NoSuchAlgorithmException e) {
+					SaveSync.logger.error(e);
+				}
             	this.mc.ingameGUI.getChatGUI().printChatMessage(
             			new TextComponentString("Attempting to publish server details on https://ml-api.uk.ms/masterlist"));
             }

@@ -99,7 +99,7 @@ public class SaveSync
     	if(DEBUG) {
         	url = "ws://localhost:4650";
     	} else {
-    		url = "ws://ml-api.uk.ms";
+    		url = "wss://ml-api.uk.ms";
     	}
     	url += "/masterlist?";
     	if(client) {
