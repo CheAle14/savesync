@@ -1,6 +1,8 @@
 package com.cheale14.savesync.common;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
@@ -53,6 +55,14 @@ public class CommonProxy {
 
 	protected Logger logger = LogManager.getLogger("savesync-proxy");
 	
+	JsonObject getDefaultMLAPIdata() {
+		JsonObject obj = new JsonObject();
+		obj.addProperty("name", "null");
+		obj.addProperty("ip", "127.0.0.1");
+		obj.addProperty("port", "25565");
+		return obj;
+	}
+	
     public void serverStart(FMLServerStartingEvent event) {
 		logger.info("Server starting, side: " + event.getSide());
     	event.registerServerCommand(new SyncCommand());
@@ -90,23 +100,45 @@ public class CommonProxy {
     	logger.info("Server started.");
     	MinecraftServer sender = FMLCommonHandler.instance().getMinecraftServerInstance();
     	warnStartups(sender, sender);
-
+    	
     	if(sender.isDedicatedServer()) {
-    		if(SaveConfig.SyncServerConnect) {
-    			if(SaveConfig.MLAPIData == null) {
-    				logger.error("MLAPI data is empty despite config option indicating we should sync. Please correct.");
-    				return;
-    			}
-    			JsonObject obj = new JsonObject();
-    			obj.addProperty("name", SaveConfig.MLAPIData.Name);
-    			obj.addProperty("ip", SaveConfig.MLAPIData.IPAddress);
-    			obj.addProperty("port", SaveConfig.MLAPIData.Port);
-    			obj.addProperty("game", "minecraft");
-    			obj.addProperty("mode", SaveConfig.MLGameMode);
+    		if(!SaveConfig.SyncServerConnect) {
+    			return;
+    		}
     			
-    			this.PublishServer(obj, null);
+    		File mlapiData = new File(sender.getDataDirectory(), "mlapi.json");
+    		logger.info("Looking for MLAPI data at: " + mlapiData.getAbsolutePath());
+    		
+    		JsonObject obj;
+    		Gson gson = new Gson();
+    		if(!mlapiData.exists()) {
+    			logger.warn("File does not exist, creating...");
+    			obj = getDefaultMLAPIdata();
+    			
+    			try {
+					mlapiData.createNewFile();
+	    			try(FileWriter writer = new FileWriter(mlapiData)) {
+	    				writer.write(gson.toJson(obj));
+	    				writer.close();
+	    			}
+    	    	} catch (IOException e) {
+					logger.error("Failed to save default MLAPI data ", e);
+				}
+    		} else {
+    			try(FileReader reader = new FileReader(mlapiData)) {
+    				obj = gson.fromJson(reader, JsonObject.class);
+    			} catch (IOException e) {
+					logger.error("Failed to read MLAPI data ", e);
+					obj = getDefaultMLAPIdata();
+				}
     		}
     		
+    		if(obj.get("name").getAsString().equals("null")) {
+    			logger.warn("MLAPI data remains at the default of null!");
+    			return;
+    		}
+    		
+    		this.PublishServer(obj, null);
     	} else {
 	        CommandHandler ch = (CommandHandler) sender.getCommandManager();
 	        ch.registerCommand(new SyncPublishCommand());

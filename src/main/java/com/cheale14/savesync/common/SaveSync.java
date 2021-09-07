@@ -626,24 +626,6 @@ public class SaveSync
     	@Name("ML Game Mode")
     	@Comment("The game mode used to categorise the server on the masterlist")
     	public static String MLGameMode = "modded";
-    	
-    	@Name("MLAPI Data")
-    	@Comment("For dedicated servers only! Controls information sent to MLAPI")
-    	public static DedicatedServerData MLAPIData = new DedicatedServerData();
-    	
-    	static class DedicatedServerData {
-    		@Name("Name")
-    		public static String Name = "name";
-    		
-    		@Name("IP Address")
-    		public static String IPAddress = "195.168.1.1";
-    		
-    		@Name("Port")
-    		@RangeInt(min = 1, max = 65565)
-    		public static Integer Port = 25565;
-    		
-    		
-    	}
     }
     
     public static class NameFilter implements FilenameFilter {
