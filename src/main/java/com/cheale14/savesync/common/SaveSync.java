@@ -92,14 +92,14 @@ public class SaveSync
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
     
-    public static final String MLAPI = "https://ml-api.uk.ms"; // "http://localhost:8887"; //
+    public static final boolean DEBUG = false;
     
     public static String WS_URI(boolean client) {
     	String url;
-    	if(MLAPI.startsWith("https")) {
-    		url = "wss://ml-api.uk.ms";
-    	} else {
+    	if(DEBUG) {
         	url = "ws://localhost:4650";
+    	} else {
+    		url = "ws://ml-api.uk.ms";
     	}
     	url += "/masterlist?";
     	if(client) {
@@ -205,30 +205,6 @@ public class SaveSync
     	}
     }
     
-    public static String PutServer() throws IOException, InterruptedException {
-    	if(!SaveConfig.SyncServerConnect) {
-    		return "Sync disabled";
-    	}
-		URL url = new URL(MLAPI + "/mc/sethamIp?ip=" + hamachiIP + "&port=" + lanPort);
-		logger.info("GETing to " + url.toString());
-		HttpURLConnection con = (HttpURLConnection) url.openConnection();
-		con.setRequestMethod("GET");
-		
-		int code = con.getResponseCode();
-		if(code < 200 || code > 299) {
-			Reader streamReader = new InputStreamReader(con.getErrorStream());
-			StringBuffer content = new StringBuffer();
-			try(BufferedReader bf = new BufferedReader(streamReader)) {
-				String line;
-				while((line = bf.readLine()) != null)
-					content.append(line);
-			}
-			logger.error("Failed to PUT: " + code + ": " + content);
-			return "Failed with " + code;
-		}
-		logger.info("Successfully PUTted");
-		return null;
-    }
     
     private static String http_get(URL url)
     {
@@ -281,7 +257,7 @@ public class SaveSync
     }
     
     public static String getExternalIp() throws MalformedURLException {
-    	String ip = http_get(new URL("https://api.ipify.org/"));
+    	String ip = http_get(new URL("http://api.ipify.org/"));
     	return ip.trim();
     }
     

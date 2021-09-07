@@ -198,7 +198,7 @@ public class SyncPublishGui extends GuiShareToLan {
             		
             	});
             	this.mc.ingameGUI.getChatGUI().printChatMessage(
-            			new TextComponentString("Attempting to publish server details on " + SaveSync.MLAPI + "/masterlist"));
+            			new TextComponentString("Attempting to publish server details on https://ml-api.uk.ms/masterlist"));
             }
     	} else if(button.id == 10) {
     		// hamachi
