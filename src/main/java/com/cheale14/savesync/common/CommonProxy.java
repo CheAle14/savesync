@@ -104,7 +104,7 @@ public class CommonProxy {
     			obj.addProperty("game", "minecraft");
     			obj.addProperty("mode", SaveConfig.MLGameMode);
     			
-    			this.PublishServer(obj);
+    			this.PublishServer(obj, null);
     		}
     		
     	} else {
@@ -135,10 +135,11 @@ public class CommonProxy {
 	private WSClient websocket;
 	private String wsId;
 	
-	public void PublishServer(JsonObject serverData) {
+	public void PublishServer(JsonObject serverData, IWebSocketHandler handler) {
 		if(wsId != null) {
 			serverData.addProperty("id", wsId);
 		}
+		logger.info("UpsertServer: " + serverData.toString());
 		URI uri = URI.create(SaveSync.WS_URI(false));
 		websocket = new WSClient(uri, new IWebSocketHandler() {
 			@Override
@@ -146,6 +147,8 @@ public class CommonProxy {
 				if(packet.Id().equals("UpsertServer")) {
 					wsId = packet.Content().getAsString();
 				}
+				if(handler != null)
+					handler.OnPacket(packet);
 			}
 			@Override
 			public void OnOpen() {
@@ -154,13 +157,19 @@ public class CommonProxy {
 				packet.Content(serverData);
 				Gson gson = new Gson();
 				websocket.send(gson.toJson(packet));
+				
+				if(handler != null)
+					handler.OnOpen();
 			}
 			@Override
 			public void OnClose(int errorCode, String reason) {
-				
+				if(handler != null)
+					handler.OnClose(errorCode, reason);
 			}
 			@Override
 			public void OnError(Exception error) {
+				if(handler != null)
+					handler.OnError(error);
 			}
 			
 		});

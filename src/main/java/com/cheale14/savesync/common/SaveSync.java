@@ -39,6 +39,7 @@ import net.querz.nbt.tag.CompoundTag;
 import net.querz.nbt.tag.ListTag;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
@@ -49,7 +50,9 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.NetworkInterface;
+import java.net.Proxy;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -60,6 +63,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.logging.log4j.Logger;
@@ -226,6 +230,33 @@ public class SaveSync
 		return null;
     }
     
+    private static String http_get(URL url)
+    {
+        try
+        {
+            HttpURLConnection httpurlconnection = (HttpURLConnection)url.openConnection();
+            httpurlconnection.setRequestMethod("GET");
+            httpurlconnection.setUseCaches(false);
+            httpurlconnection.setDoOutput(true);
+            BufferedReader bufferedreader = new BufferedReader(new InputStreamReader(httpurlconnection.getInputStream()));
+            StringBuffer stringbuffer = new StringBuffer();
+            String s;
+
+            while ((s = bufferedreader.readLine()) != null)
+            {
+                stringbuffer.append(s);
+                stringbuffer.append('\r');
+            }
+
+            bufferedreader.close();
+            return stringbuffer.toString();
+        }
+        catch (Exception exception)
+        {
+            logger.error(exception);
+            return "";
+        }
+    }
     
     public static String getHamachiIP() throws IOException, InterruptedException {
     	if(!isProcessRunning("hamachi-2-ui.exe") ) {
@@ -247,6 +278,11 @@ public class SaveSync
     		}
     	}
     	return null;
+    }
+    
+    public static String getExternalIp() throws MalformedURLException {
+    	String ip = http_get(new URL("https://api.ipify.org/"));
+    	return ip.trim();
     }
     
     

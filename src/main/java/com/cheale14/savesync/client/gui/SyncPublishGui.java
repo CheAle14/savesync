@@ -9,10 +9,13 @@ import java.net.UnknownHostException;
 import org.lwjgl.input.Keyboard;
 
 import com.cheale14.savesync.client.WSClient;
+import com.cheale14.savesync.common.IWebSocketHandler;
 import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
+import com.cheale14.savesync.common.WSPacket;
 import com.google.gson.JsonObject;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiLabel;
 import net.minecraft.client.gui.GuiScreen;
@@ -25,6 +28,7 @@ import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.GameType;
 
 public class SyncPublishGui extends GuiShareToLan {
@@ -128,12 +132,12 @@ public class SyncPublishGui extends GuiShareToLan {
     	if(button.id == 101) {
     		InetAddress addr = null;
     		try {
-
+    			
         		addr = InetAddress.getByName(txtIpAddress.getText());
     		} catch(UnknownHostException e) {
     			SaveSync.logger.error(e);
     		}
-    		if(addr == null) {
+    		if(addr == null || addr.isLoopbackAddress()) {
     			txtIpAddress.setFocused(true);
     			txtIpAddress.setTextColor(Color.red.getRGB());
     			return;
@@ -155,14 +159,46 @@ public class SyncPublishGui extends GuiShareToLan {
             }
             this.mc.ingameGUI.getChatGUI().printChatMessage(itextcomponent);
             
+            Minecraft mc = this.mc;
+            
             if(s != null) {
             	// i know we're doing this if twice
             	JsonObject obj = getJson();
             	obj.addProperty("port", s);
 
-            	SaveSync.proxy.PublishServer(obj);
+            	SaveSync.proxy.PublishServer(obj, new IWebSocketHandler() {
+
+					@Override
+					public void OnPacket(WSPacket packet) {
+		            	mc.ingameGUI.getChatGUI().printChatMessage(
+		            			new TextComponentString(TextFormatting.GREEN + "Server should now be on the masterlist."));
+					}
+
+					@Override
+					public void OnOpen() {
+		            	mc.ingameGUI.getChatGUI().printChatMessage(
+		            			new TextComponentString("Connection established, sending details"));
+					}
+
+					@Override
+					public void OnClose(int errorCode, String reason) {
+						// TODO Auto-generated method stub
+
+		            	mc.ingameGUI.getChatGUI().printChatMessage(
+		            			new TextComponentString("Connection closed: " + errorCode + ", " + reason));
+					}
+
+					@Override
+					public void OnError(Exception error) {
+						// TODO Auto-generated method stub
+
+		            	mc.ingameGUI.getChatGUI().printChatMessage(
+		            			new TextComponentString(TextFormatting.RED + "Connection errored: " + error.toString()));
+					}
+            		
+            	});
             	this.mc.ingameGUI.getChatGUI().printChatMessage(
-            			new TextComponentString("Published server details on MLAPI."));
+            			new TextComponentString("Attempting to publish server details on " + SaveSync.MLAPI + "/masterlist"));
             }
     	} else if(button.id == 10) {
     		// hamachi
@@ -179,8 +215,9 @@ public class SyncPublishGui extends GuiShareToLan {
     		txtIpAddress.setText(ip);
     	} else if(button.id == 11) {
     		// external
-    		
-    		// TODO: add external lookup of IP, e.g. via https://icanhazip.com or similar
+    		String ip = SaveSync.getExternalIp();
+
+    		txtIpAddress.setText(ip);
     		
     	} else {
     		super.actionPerformed(button);
