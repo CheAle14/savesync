@@ -184,42 +184,50 @@ public class CommonProxy {
 		}
 		logger.info("UpsertServer: " + serverData.toString());
 		URI uri = URI.create(SaveSync.WS_URI(false));
-		websocket = new WSClient(uri, new IWebSocketHandler() {
-			@Override
-			public void OnPacket(WSPacket packet) {
-				if(packet.Id().equals("UpsertServer")) {
-					if(packet.Content() instanceof JsonObject) {
+		
 
-						wsId = ((JsonObject)packet.Content()).get("id").getAsString();
+		WSPacket packet = new WSPacket();
+		packet.Id("UpsertServer");
+		packet.Content(serverData);
+		Gson gson = new Gson();
+		String sending = gson.toJson(packet);
+		
+		if(websocket == null) {
+			websocket = new WSClient(uri, new IWebSocketHandler() {
+				@Override
+				public void OnPacket(WSPacket packet) {
+					if(packet.Id().equals("UpsertServer")) {
+						if(packet.Content() instanceof JsonObject) {
+	
+							wsId = ((JsonObject)packet.Content()).get("id").getAsString();
+						}
 					}
+					if(handler != null)
+						handler.OnPacket(packet);
 				}
-				if(handler != null)
-					handler.OnPacket(packet);
-			}
-			@Override
-			public void OnOpen() {
-				WSPacket packet = new WSPacket();
-				packet.Id("UpsertServer");
-				packet.Content(serverData);
-				Gson gson = new Gson();
-				websocket.send(gson.toJson(packet));
+				@Override
+				public void OnOpen() {
+					websocket.send(sending);
+					
+					if(handler != null)
+						handler.OnOpen();
+				}
+				@Override
+				public void OnClose(int errorCode, String reason) {
+					if(handler != null)
+						handler.OnClose(errorCode, reason);
+				}
+				@Override
+				public void OnError(Exception error) {
+					if(handler != null)
+						handler.OnError(error);
+				}
 				
-				if(handler != null)
-					handler.OnOpen();
-			}
-			@Override
-			public void OnClose(int errorCode, String reason) {
-				if(handler != null)
-					handler.OnClose(errorCode, reason);
-			}
-			@Override
-			public void OnError(Exception error) {
-				if(handler != null)
-					handler.OnError(error);
-			}
-			
-		});
-		websocket.connect();
+			});
+			websocket.connect();
+		} else {
+			websocket.send(sending);
+		}
 	}
 	
 	@SubscribeEvent
