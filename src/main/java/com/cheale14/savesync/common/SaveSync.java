@@ -89,7 +89,7 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.10";
+    public static final String VERSION = "0.11";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
