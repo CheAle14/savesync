@@ -74,14 +74,25 @@ public class SyncReplaceGuiMP extends GuiMultiplayer implements IWebSocketHandle
 			
 			Field f;
 			try {
-				f = GuiMultiplayer.class.getDeclaredField("serverListSelector");
-				f.setAccessible(true);
-				ServerSelectionList selector = (ServerSelectionList)f.get(this);
+				ServerSelectionList selector = null;
+				Class clazz = GuiMultiplayer.class;
+				for(Field field : clazz.getDeclaredFields()) {
+					if(field.getType().getName().equals(ServerSelectionList.class.getName())) {
+						field.setAccessible(true);
+						selector = (ServerSelectionList)field.get(this);
+						break;
+					}
+					SaveSync.logger.debug("GuiMP: " + field.getType().getName() + " " + field.getName());
+				}
+				if(selector == null) {
+					SaveSync.logger.warn("Unable to find serverSelectionList.");
+					
+				} else {
+					selector.updateOnlineServers(servers);
+				}
+							
 				
-				selector.updateOnlineServers(servers);
-				
-				
-			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+			} catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
 				e.printStackTrace();
 				SaveSync.logger.error(e);
 			}

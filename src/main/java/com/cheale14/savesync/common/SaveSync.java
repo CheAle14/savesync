@@ -81,6 +81,8 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
+import com.cheale14.savesync.interop.DummyFTBBackups;
+
 
 @Mod(modid = SaveSync.MODID, name = SaveSync.NAME, version = SaveSync.VERSION, acceptableRemoteVersions = "*")
 public class SaveSync
@@ -115,6 +117,9 @@ public class SaveSync
 
     @SidedProxy(modId=MODID, clientSide="com.cheale14.savesync.client.ClientProxy", serverSide="com.cheale14.savesync.common.CommonProxy")
     public static CommonProxy proxy;
+
+
+    public static DummyFTBBackups ftb_backups;
     
     public static Logger logger;
     public static boolean loadedSync = false;
@@ -141,6 +146,20 @@ public class SaveSync
     		logger.info("Proxy: " + proxy.getClass().getName());
     		MinecraftForge.EVENT_BUS.register(proxy);
     	}
+    	
+    	try {
+        	if(Loader.isModLoaded("ftbbackups")) {
+        		ftb_backups = Class.forName("com.cheale14.savesync.interop.ActiveFTBBackups")
+        				.asSubclass(DummyFTBBackups.class).newInstance();
+        	} else {
+        		ftb_backups = new DummyFTBBackups();
+        	}
+        	
+    		MinecraftForge.EVENT_BUS.register(ftb_backups);
+    	} catch(InstantiationException | ClassNotFoundException | IllegalAccessException e) {
+    		SaveSync.logger.error(e);
+    	}
+
     }
 
     @EventHandler

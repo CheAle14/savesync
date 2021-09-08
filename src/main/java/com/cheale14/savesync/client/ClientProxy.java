@@ -5,7 +5,6 @@ import com.cheale14.savesync.common.Icon;
 import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
 import com.cheale14.savesync.common.SyncThread;
-import com.feed_the_beast.mods.ftbbackups.BackupEvent;
 import com.mojang.realmsclient.dto.RealmsServer.McoServerComparator;
 
 import java.io.BufferedReader;
@@ -145,14 +144,10 @@ public class ClientProxy extends CommonProxy {
 
 	
 	static SyncProgressGui syncGui;
-	
-	@SubscribeEvent
+
+
 	@Override
-	public void backupDone(BackupEvent.Post event) {
-		if(event.getError() != null) {
-			logger.info("Error occured during backup, so not autopushing.");
-			return;
-		}
+	public void backupDone() {
 		if(syncGui != null) {
 			if(syncGui.closed) {
 				syncGui = null;

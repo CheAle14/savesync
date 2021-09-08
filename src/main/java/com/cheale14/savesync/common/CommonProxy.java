@@ -24,8 +24,8 @@ import org.eclipse.jgit.lib.ProgressMonitor;
 import com.cheale14.savesync.client.WSClient;
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
 import com.cheale14.savesync.server.commands.SyncCommand;
+import com.cheale14.savesync.server.commands.SyncDedicatedPublishCommand;
 import com.cheale14.savesync.server.commands.SyncPublishCommand;
-import com.feed_the_beast.mods.ftbbackups.BackupEvent;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -97,56 +97,61 @@ public class CommonProxy {
 	    	}
     	}
     }
+	
+	public void PublishFromJson(MinecraftServer server) {
+		File mlapiData = new File(server.getDataDirectory(), "mlapi.json");
+		logger.info("Looking for MLAPI data at: " + mlapiData.getAbsolutePath());
+		
+		JsonObject obj;
+		Gson gson = new Gson();
+		if(!mlapiData.exists()) {
+			logger.warn("File does not exist, creating...");
+			obj = getDefaultMLAPIdata();
+			
+			try {
+				mlapiData.createNewFile();
+    			try(FileWriter writer = new FileWriter(mlapiData)) {
+    				writer.write(gson.toJson(obj));
+    				writer.close();
+    			}
+	    	} catch (IOException e) {
+				logger.error("Failed to save default MLAPI data ", e);
+			}
+		} else {
+			try(FileReader reader = new FileReader(mlapiData)) {
+				obj = gson.fromJson(reader, JsonObject.class);
+			} catch (IOException e) {
+				logger.error("Failed to read MLAPI data ", e);
+				obj = getDefaultMLAPIdata();
+			}
+		}
+		
+		if(obj.get("name").getAsString().equals("null")) {
+			logger.warn("MLAPI data remains at the default of null!");
+			return;
+		}
+		
+		try {
+			this.PublishServer(obj, null);
+		} catch (KeyManagementException | NoSuchAlgorithmException e) {
+			logger.error(e);
+		}
+	}
     
     public void serverStarted(FMLServerStartedEvent event) {
     	logger.info("Server started.");
     	MinecraftServer sender = FMLCommonHandler.instance().getMinecraftServerInstance();
     	warnStartups(sender, sender);
-    	
+
+        CommandHandler ch = (CommandHandler) sender.getCommandManager();
     	if(sender.isDedicatedServer()) {
+    		ch.registerCommand(new SyncDedicatedPublishCommand());
     		if(!SaveConfig.SyncServerConnect) {
     			return;
     		}
     			
-    		File mlapiData = new File(sender.getDataDirectory(), "mlapi.json");
-    		logger.info("Looking for MLAPI data at: " + mlapiData.getAbsolutePath());
-    		
-    		JsonObject obj;
-    		Gson gson = new Gson();
-    		if(!mlapiData.exists()) {
-    			logger.warn("File does not exist, creating...");
-    			obj = getDefaultMLAPIdata();
-    			
-    			try {
-					mlapiData.createNewFile();
-	    			try(FileWriter writer = new FileWriter(mlapiData)) {
-	    				writer.write(gson.toJson(obj));
-	    				writer.close();
-	    			}
-    	    	} catch (IOException e) {
-					logger.error("Failed to save default MLAPI data ", e);
-				}
-    		} else {
-    			try(FileReader reader = new FileReader(mlapiData)) {
-    				obj = gson.fromJson(reader, JsonObject.class);
-    			} catch (IOException e) {
-					logger.error("Failed to read MLAPI data ", e);
-					obj = getDefaultMLAPIdata();
-				}
-    		}
-    		
-    		if(obj.get("name").getAsString().equals("null")) {
-    			logger.warn("MLAPI data remains at the default of null!");
-    			return;
-    		}
-    		
-    		try {
-				this.PublishServer(obj, null);
-			} catch (KeyManagementException | NoSuchAlgorithmException e) {
-				logger.error(e);
-			}
+    		PublishFromJson(sender);
     	} else {
-	        CommandHandler ch = (CommandHandler) sender.getCommandManager();
 	        ch.registerCommand(new SyncPublishCommand());
 		}
     }
@@ -294,23 +299,19 @@ public class CommonProxy {
     		}
     	}*/
     }
-	
-	@SubscribeEvent
-	public void backupDone(BackupEvent.Post event) {
-		if(event.getError() != null) {
-			logger.info("Error occured during backup, so not autopushing.");
-			return;
-		}
+
+
+	public void backupDone() {
 		File worldFolder = new File(FMLCommonHandler.instance().getSavesDirectory(), "world");
 		if(!SaveSync.IsSyncFolder(worldFolder)) {
-			logger.info("Not sync folder, not acting.");
+			SaveSync.logger.info("Not sync folder, not acting.");
 			return;
 		}
-		logger.info("Automatically syncing as backup has been done.");
+		SaveSync.logger.info("Automatically syncing as backup has been done.");
 		try {
 			SaveSync.SyncUpload(worldFolder, new SyncProgMonitor());
 		} catch (GitAPIException | IOException | URISyntaxException e) {
-			logger.error(e);
+			SaveSync.logger.error(e);
 		}
 	}
     
