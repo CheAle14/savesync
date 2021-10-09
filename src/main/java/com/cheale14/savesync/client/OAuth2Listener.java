@@ -14,6 +14,7 @@ import java.net.Socket;
 import java.util.Date;
 import java.util.StringTokenizer;
 
+import com.cheale14.savesync.client.gui.SyncLoginGui;
 import com.cheale14.savesync.common.SaveSync;
 
 
@@ -22,8 +23,10 @@ public class OAuth2Listener implements Runnable {
 
 	ServerSocket serverSocket;
 	public int Port;
+	SyncLoginGui parent;
 	
-	public OAuth2Listener(int port) throws IOException {
+	public OAuth2Listener(SyncLoginGui gui, int port) throws IOException {
+		parent = gui;
 		serverSocket = new ServerSocket(port);
 		Port = serverSocket.getLocalPort();
 	}
@@ -33,6 +36,14 @@ public class OAuth2Listener implements Runnable {
 		if(thread == null) {
 			thread = new Thread(this);
 			thread.start();
+		}
+	}
+	
+	public void Stop() {
+		try {
+			serverSocket.close();
+		} catch(Exception e) {
+			e.printStackTrace();
 		}
 	}
 	
@@ -64,17 +75,60 @@ public class OAuth2Listener implements Runnable {
 			fileRequested = parse.nextToken().toLowerCase();
 			
 			SaveSync.logger.info("HTTP request: " + method + " " + fileRequested);
+			String query = fileRequested.substring(fileRequested.indexOf("?") + 1);
 			
-			String response = "Thank you for your redirect!";
+			SaveSync.logger.info("Query string: " + query);
+			String[] params = query.split("&");
+			String code = "";
+			String state = "";
+			for(String paramString : params) {
+				String[] keypair = paramString.split("=");
+				SaveSync.logger.info("Key: " + keypair[0] + ", value: " + keypair[1]);
+				if(keypair[0].equals("code")) {
+					code = keypair[1];
+				} else if(keypair[0].equals("state")) {
+					state = keypair[1];
+				}
+			}
 			
-			out.println("HTTP/1.1 200 OK");
+			int responseCode;
+			try {
+				responseCode = parent.GotLoginData(code, state);
+			} catch(Exception e) {
+				responseCode = 0;
+				e.printStackTrace();
+			}
+			if(responseCode != 200) {
+				parent.scheduleUI();
+			}
+			
+			String responseText;
+			out.print("HTTP/1.1 " + responseCode);
+			if(responseCode == 200) {
+				out.print("OK");
+				responseText = "Thank you, you have successfully logged in and may close this window.";
+			}
+			else if (responseCode == 400)  {
+				out.print("Bad Request");
+				responseText = "State parameter did not match. Please try process again.";
+			} else if(responseCode == 500) {
+				out.print("Internal Error");
+				responseText = "An error occured when trying to communicate with GitHub";
+			} else {
+				out.print("Bad code");
+				responseText = "An unknown internal error occured.";
+			}
+			
+			out.print("\n");
+			
 			out.println("Server: Java HTTP Server from SSaurel : 1.1");
 			out.println("Date: " + new Date());
 			out.println("Content-type: text/html");
-			out.println("Content-length: " + response.length());
+			out.println("Content-length: " + responseText.length());
 			out.println();
-			out.print(response);
+			out.print(responseText);
 			out.flush();
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

@@ -7,6 +7,8 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.lwjgl.input.Mouse;
 
+import com.cheale14.savesync.common.SaveSync;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
@@ -33,6 +35,7 @@ public class SyncGuiLog extends SyncScrollingList {
 			int seconds = (int)(diff / 1000);
 			String padded = StringUtils.leftPad("" + seconds, 3, '0');
 			messages.add("[" + padded + "] " + message);
+			SaveSync.logger.info(message);
 			this.selectedIndex = messages.size() - 1;
 			if(skipEnd) {
 				int scroll = this.slotHeight * (this.messages.size() - 15); // display last x msgs

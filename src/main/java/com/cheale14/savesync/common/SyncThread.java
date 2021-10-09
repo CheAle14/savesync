@@ -57,6 +57,7 @@ public class SyncThread extends Thread {
 			Gui.Append(e.toString());
 			Gui.Append("ERROR");
 			didError = true;
+			e.printStackTrace();
 		}
 
 		

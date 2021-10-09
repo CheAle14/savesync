@@ -31,13 +31,12 @@ public class SyncFileInfo {
 		String repos = null;
 		if(reader.hasNextLine() ) {
 			repos = reader.nextLine();	
-			if(StringUtils.isNullOrEmpty(repos)) {
-				SaveSync.logger.warn("Using default repository save information from config");
-				repos = SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName;
-			}
+		}
+		if(StringUtils.isNullOrEmpty(repos)) {
+			SaveSync.logger.warn("Using default repository save information from config");
+			repos = SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName;
 		}
     	reader.close();
-    	
     	return new SyncFileInfo(branch, repos);
 	}
 	
@@ -49,8 +48,12 @@ public class SyncFileInfo {
     	}
 	}
 	
+	public String repoSlug() {
+		return RepoOwner + "/" + RepoName;
+	}
+	
 	@Override
 	public String toString() {
-		return RepoOwner + "/" + RepoName + "#" + Branch;
+		return repoSlug() + "#" + Branch;
 	}
 }

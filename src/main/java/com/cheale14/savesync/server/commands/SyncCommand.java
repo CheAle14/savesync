@@ -9,11 +9,13 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 
 import com.cheale14.savesync.common.MCCommandMonitor;
 import com.cheale14.savesync.common.SaveSync;
+import com.cheale14.savesync.common.SyncFileInfo;
 
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.StringUtils;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
@@ -39,11 +41,24 @@ public class SyncCommand extends CommandBase {
 			return;
 		}
 		if("register".equalsIgnoreCase(args[0])) {
-			String branch = "main";
+			String branch = null;
+			String repoSlug = null;
 			if(args.length == 2) {
-				branch = args[1];
-			} else {
-				SaveSync.logger.warn("No branch provided, assuming default of " + branch);
+				String[] split = args[1].split("#");
+				if(split.length == 1) {
+					repoSlug = split[0];
+					branch = "main";
+				} else if(split.length == 2) {
+					repoSlug = split[0];
+					if(repoSlug.split("/").length != 2) {
+						repoSlug = null;
+					}
+				}
+			}
+			if(StringUtils.isNullOrEmpty(repoSlug) || StringUtils.isNullOrEmpty(branch)) {
+				sender.sendMessage(new TextComponentString("Usage: /sync register RepoOwner/RepoName#Branch | e.g. CheAle14/some-repo#main")
+						.setStyle(new Style().setColor(TextFormatting.RED)));
+				return;
 			}
 			File saveFolder = DimensionManager.getCurrentSaveRootDirectory();
 			SaveSync.logger.info(saveFolder.getAbsolutePath());
@@ -52,8 +67,9 @@ public class SyncCommand extends CommandBase {
 				boolean created = syncFile.createNewFile();
 				if(created) {
 					SaveSync.logger.info("Sync file created, writing branch name");
-					SaveSync.WriteSyncBranch(saveFolder, branch);
-					sender.sendMessage(new TextComponentString("Successfully registered this world to sync with " + branch + " branch"));
+					SyncFileInfo syncInfo = new SyncFileInfo(branch, repoSlug);
+					syncInfo.ToFile(new File(saveFolder, SaveSync.SYNCNAME));
+					sender.sendMessage(new TextComponentString("Successfully registered this world to sync with " + syncInfo.toString()));
 				} else {
 					sender.sendMessage(new TextComponentString("Error: Failed to create sync file")
 							.setStyle(new Style().setColor(TextFormatting.RED)));

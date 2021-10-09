@@ -19,6 +19,8 @@ import java.util.List;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.cheale14.savesync.client.gui.SyncLoginGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui.SyncType;
@@ -99,10 +101,21 @@ public class ClientProxy extends CommonProxy {
 	
 	boolean didSync = false;
 	void renderSPScreen(GuiWorldSelection sp) {
+		try {
+			if(SaveSync.GetCurrentUser() == null) {
+				logger.info("API key gives null user, might be missing - forcing login");
+				SaveConfig.API_Key = "none";
+				sp.mc.displayGuiScreen(new SyncLoginGui(sp));
+				return;
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+			logger.warn("API key results in error; forcing re-login");
+			SaveConfig.API_Key = "none";
+			sp.mc.displayGuiScreen(new SyncLoginGui(sp));
+			return;
+		}
 		
-		sp.mc.displayGuiScreen(new SyncLoginGui(sp));
-		return;
-		/*
 		logger.info("DidSync: " + didSync);
 		if(didSync) {
 			// We have just come from the syncing screen, so proceed as normal.
@@ -113,7 +126,7 @@ public class ClientProxy extends CommonProxy {
 			logger.info("Not synced, opening progress GUI to sync..");
 			SyncProgressGui syncGui = new SyncProgressGui(sp, SyncType.DOWNLOAD_ALL);
 			sp.mc.displayGuiScreen(syncGui);
-		}*/
+		}
 	}
 	
 
@@ -130,19 +143,6 @@ public class ClientProxy extends CommonProxy {
 		} else {
 			colour = 4;
 			text = "Sync: Failed to load.";
-		}
-		if(!SaveSync.HasAPIKey() && !SaveSync.hasRedirectedToConfig) {
-			SaveSync.hasRedirectedToConfig = true;
-			logger.info("Trying to show config... let's see how this works");
-			GuiModList mods = new GuiModList(mm);
-			
-
-			ModContainer mod = findModIndex();
-            IModGuiFactory guiFactory = FMLClientHandler.instance().getGuiFactoryFor(mod);
-            GuiScreen newScreen = guiFactory.createConfigGui(mods);
-			
-			mm.mc.displayGuiScreen(newScreen);
-			return;
 		}
 		renderer.drawString(text, 1, 1, colour);
 	}

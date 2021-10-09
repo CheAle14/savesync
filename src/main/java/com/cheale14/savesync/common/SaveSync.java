@@ -3,6 +3,7 @@ package com.cheale14.savesync.common;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.StringUtils;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
@@ -48,6 +49,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
@@ -66,6 +68,12 @@ import java.util.Scanner;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLHandshakeException;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.InitCommand;
@@ -81,7 +89,9 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
+import com.cheale14.savesync.client.GithubUser;
 import com.cheale14.savesync.interop.DummyFTBBackups;
+import com.google.gson.Gson;
 
 
 @Mod(modid = SaveSync.MODID, name = SaveSync.NAME, version = SaveSync.VERSION, acceptableRemoteVersions = "*")
@@ -89,7 +99,7 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.11";
+    public static final String VERSION = "0.12";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
@@ -127,17 +137,18 @@ public class SaveSync
     public static String hamachiIP = null;
     public static String lanPort = null;
     
-    public static boolean hasRedirectedToConfig = false;
+    public static File configFile;
     
     public static boolean isUploading = false;
     
     public static boolean HasAPIKey() {
-    	return !(SaveSync.SaveConfig.API_Key == null || SaveSync.SaveConfig.API_Key.equals("none"));
+    	return !(StringUtils.isNullOrEmpty(SaveConfig.API_Key) || SaveConfig.API_Key.equals("none"));
     }
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event)
     {
+    	configFile = event.getSuggestedConfigurationFile();
         logger = event.getModLog();
         MinecraftForge.EVENT_BUS.register(this);
     	if(proxy == null) {
@@ -250,6 +261,51 @@ public class SaveSync
             logger.error(exception);
             return "";
         }
+    }
+    
+    public static String readString(HttpEntity entity) throws UnsupportedEncodingException, IllegalStateException, IOException {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent(), "UTF-8"));
+		StringBuilder builder = new StringBuilder();
+		for (String line = null; (line = reader.readLine()) != null;) {
+		    builder.append(line).append("\n");
+		}
+		return builder.toString();
+	}
+    
+    public static GithubUser GetCurrentUser(String accessToken) throws ClientProtocolException, IOException {
+    	HttpClient client = HttpClientBuilder.create().build();
+    	HttpGet get = new HttpGet("https://api.github.com/user");
+		get.addHeader("Accept", "application/vnd.github.v3+json");
+		get.addHeader("Authorization", "token " + accessToken);
+		
+		HttpResponse getResponse = client.execute(get);
+		
+		
+		
+		String json = readString(getResponse.getEntity());
+		SaveSync.logger.info(getResponse.getStatusLine().toString() + ": " + json);
+		
+		if(getResponse.getStatusLine().getStatusCode() != 200) {
+			return null;
+		}
+		
+		return new Gson().fromJson(json, GithubUser.class);
+    }
+    
+    public static void PurgeCachedUser() {
+    	savedUser = null;
+    }
+    
+    static GithubUser savedUser = null;
+    public static GithubUser GetCurrentUser() throws ClientProtocolException, IOException {
+    	if(SaveSync.HasAPIKey()) {
+    		if(savedUser == null) {
+    			savedUser = GetCurrentUser(SaveConfig.API_Key);
+    		}
+    		return savedUser;
+    	} else {
+    		return null;
+    	}
     }
     
     public static String getHamachiIP() throws IOException, InterruptedException {
@@ -503,13 +559,13 @@ public class SaveSync
     	File syncFile = new File(worldFolder, SYNCNAME);
     	return worldFolder.isDirectory() && syncFile.exists() && syncFile.isFile();
     }
-    public static void WriteSyncBranch(File worldFolder, String branch) throws IOException {
+    /*public static void WriteSyncBranch(File worldFolder, String branch) throws IOException {
     	File syncFile = new File(worldFolder, SYNCNAME);
     	try(FileWriter writer = new FileWriter(syncFile)) {
 			writer.write(branch);
 			writer.close();
     	}
-    }
+    }*/
     
     public static void SyncDownload(File world, ProgressMonitor monitor) throws IOException, NoWorkTreeException, GitAPIException, SyncException, URISyntaxException {
     	SyncFileInfo syncInfo = SyncFileInfo.FromFile(new File(world, SYNCNAME));
@@ -540,7 +596,8 @@ public class SaveSync
 			logger.info("Attempting to rename " + world + " -> " + newWorld);
 			move(world, newWorld);
 			logger.info("Renamed");
-			WriteSyncBranch(newWorld, newName);
+			SyncFileInfo newInfo = new SyncFileInfo(newName, syncInfo.repoSlug());
+			newInfo.ToFile(new File(newWorld, SYNCNAME));
 			logger.info("Renamed folder over, moving to new branch...");
 			git = Git.open(newWorld);
 			Ref branch = git.branchCreate().setName(newName).call();
