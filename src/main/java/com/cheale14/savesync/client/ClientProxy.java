@@ -19,6 +19,7 @@ import java.util.List;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import com.cheale14.savesync.client.gui.SyncLoginGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui.SyncType;
 import com.cheale14.savesync.client.gui.SyncReplaceGuiMP;
@@ -72,7 +73,7 @@ public class ClientProxy extends CommonProxy {
 			if(gui instanceof SyncReplaceGuiMP)
 				return;
 			renderMultiplayerMenu((GuiMultiplayer)gui);
-		}
+		} 
 		
 	}
 	
@@ -98,6 +99,10 @@ public class ClientProxy extends CommonProxy {
 	
 	boolean didSync = false;
 	void renderSPScreen(GuiWorldSelection sp) {
+		
+		sp.mc.displayGuiScreen(new SyncLoginGui(sp));
+		return;
+		/*
 		logger.info("DidSync: " + didSync);
 		if(didSync) {
 			// We have just come from the syncing screen, so proceed as normal.
@@ -108,7 +113,7 @@ public class ClientProxy extends CommonProxy {
 			logger.info("Not synced, opening progress GUI to sync..");
 			SyncProgressGui syncGui = new SyncProgressGui(sp, SyncType.DOWNLOAD_ALL);
 			sp.mc.displayGuiScreen(syncGui);
-		}
+		}*/
 	}
 	
 
