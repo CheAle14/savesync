@@ -165,7 +165,6 @@ public class SaveSync
     @EventHandler
     public void init(FMLInitializationEvent event) throws Exception
     {
-    	logger.info("Repo: https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName);
     	if(event.getSide() == Side.SERVER) {
     		logger.info("On dedicated server");
     		if(!HasAPIKey()) {
@@ -289,7 +288,7 @@ public class SaveSync
 		}
     }*/
     
-    private static String readFile(File file) throws FileNotFoundException {
+    /*private static String readFile(File file) throws FileNotFoundException {
     	Scanner reader = new Scanner(file);
     	String text = "";
     	while(reader.hasNextLine()) {
@@ -297,13 +296,14 @@ public class SaveSync
     	}
     	reader.close();
     	return text;
-    }
+    }*/
     
     static UsernamePasswordCredentialsProvider auth() {
     	return new UsernamePasswordCredentialsProvider(SaveConfig.API_Key, "");
     }
-    static String remoteUrl() {
-		return "https://github.com/" + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName + ".git";
+    static String remoteUrl(SyncFileInfo info) {
+    	
+		return "https://github.com/" + info.RepoOwner + "/" + info.RepoName + ".git";
     }
     
     public static void WriteMods(File worldFolder) throws IOException {
@@ -380,7 +380,8 @@ public class SaveSync
     }
     
     public static void SyncUpload(File world, ProgressMonitor monitor) throws GitAPIException, IOException, URISyntaxException {
-    	String branchName = readFile(new File(world, SYNCNAME));
+    	SyncFileInfo syncInfo = SyncFileInfo.FromFile(new File(world, SYNCNAME));
+    	String branchName = syncInfo.Branch;
     	Git git = null;
     	if(world.listFiles(new FilenameFilter() {
 			@Override
@@ -395,7 +396,7 @@ public class SaveSync
     		init.setInitialBranch(branchName);
     		monitor.update(1);
     		
-    		String url = remoteUrl();
+    		String url = remoteUrl(syncInfo);
     		SaveSync.logger.info("Remote URL: " + url);
     		git = init.call();
     		git.remoteAdd()
@@ -457,29 +458,32 @@ public class SaveSync
     	Files.copy(file.toPath(), nbtFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
     
-    public static void SyncClone(File to, String branch, ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
+    public static void SyncClone(SyncFileInfo info, File to, ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
     	if(!to.exists()) {
     		to.mkdir();
     	}
+    	
     	try(Git git = Git.init()
     			.setDirectory(to)
-    			.setInitialBranch(branch)
+    			.setInitialBranch(info.Branch)
     			.call()
     			) {
-    		logger.info("Init repo, now pulling");
+    		String url = remoteUrl(info);
+    		logger.info("Init repo, now pulling from " + url);
     		git.remoteAdd()
 	    		.setName("origin")
-	    		.setUri(new URIish(remoteUrl()))
+	    		.setUri(new URIish(url))
 	    		.call();
     		git.pull()
     			.setCredentialsProvider(auth())
     			.setRemote("origin")
     			.setProgressMonitor(monitor)
     			.call();
-    		logger.info("Successfully cloned " + branch + " into " + to.getAbsolutePath());
+    		logger.info("Successfully cloned " + info.Branch + " into " + to.getAbsolutePath());
     		git.close();
     		FixNBT(to);
     	}
+    	info.ToFile(new File(to, SYNCNAME));
     }
     
     static void move(File from, File to) throws IOException {
@@ -508,7 +512,7 @@ public class SaveSync
     }
     
     public static void SyncDownload(File world, ProgressMonitor monitor) throws IOException, NoWorkTreeException, GitAPIException, SyncException, URISyntaxException {
-    	String branchName = readFile(new File(world, SYNCNAME));
+    	SyncFileInfo syncInfo = SyncFileInfo.FromFile(new File(world, SYNCNAME));
     	Git git = Git.open(world);
 		/*git.fetch()
     		.setCredentialsProvider(auth())
@@ -547,14 +551,14 @@ public class SaveSync
 			logger.info("We can now attempt to make sure the old folder is deleted and pull it again");
 			world.delete();
 			logger.info("Folder deleted, cloning...");
-			SyncClone(world, branchName, monitor);
+			SyncClone(syncInfo, world, monitor);
 			
 		}
     }
     
     static void CloneDefaultBranch(ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, IOException {
 		File world = proxy.GetDefaultBranchFolder();
-		SyncClone(world, "main", monitor);
+		SyncClone(new SyncFileInfo("main", SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName), world, monitor);
     }
     
     public static void SyncDownload(ProgressMonitor monitor) throws InvalidRemoteException, TransportException, GitAPIException, URISyntaxException, NoWorkTreeException, IOException, SyncException {
@@ -597,9 +601,11 @@ public class SaveSync
     {
     	@Name("Repository Owner")
     	@Comment("Github username of the repository's owner")
+    	@Deprecated
         public static String RepositoryOwner = "SneakyBoy10";
     	@Name("Repository Name")
     	@Comment("Name of the repository itself")
+    	@Deprecated
         public static String RepositoryName = "Ominfactory-Save";
     	
     	@Name("API Key")

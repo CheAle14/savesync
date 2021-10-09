@@ -70,7 +70,7 @@ public class CommonProxy {
     	event.registerServerCommand(new SyncCommand());
     }
 
-	void warnStartups(ICommandSender sender, MinecraftServer server) {
+	void warnStartups(ICommandSender sender, MinecraftServer server) throws FileNotFoundException {
     	if(!SaveSync.HasAPIKey()) {
     		sender.sendMessage(new TextComponentString("The server has not set their GitHub personal access token for save syncing.")
     				.setStyle(new Style().setColor(TextFormatting.RED)));
@@ -84,7 +84,8 @@ public class CommonProxy {
 				sender.sendMessage(new TextComponentString(root.getAbsolutePath()));
 				File syncFile = new File(root, SaveSync.SYNCNAME);
 				if(syncFile.exists()) {
-		    		sender.sendMessage(new TextComponentString("World should be saved upon exit (or /sync now) to " + SaveConfig.RepositoryOwner + "/" + SaveConfig.RepositoryName)
+					SyncFileInfo info = SyncFileInfo.FromFile(syncFile);
+		    		sender.sendMessage(new TextComponentString("World should be saved upon exit (or /sync now) to " + info.toString())
 	    				.setStyle(new Style().setColor(TextFormatting.GREEN)));
 				} else {
 		    		sender.sendMessage(new TextComponentString("Notice: This save will not be synced to github. To setup, use /sync now [branch]")
@@ -141,7 +142,12 @@ public class CommonProxy {
     public void serverStarted(FMLServerStartedEvent event) {
     	logger.info("Server started.");
     	MinecraftServer sender = FMLCommonHandler.instance().getMinecraftServerInstance();
-    	warnStartups(sender, sender);
+    	try {
+			warnStartups(sender, sender);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
         CommandHandler ch = (CommandHandler) sender.getCommandManager();
     	if(sender.isDedicatedServer()) {
@@ -247,7 +253,11 @@ public class CommonProxy {
     	if(side != Side.SERVER)
     		return;
     	EntityPlayer player = event.player;
-    	warnStartups(player, player.getServer());
+    	try {
+			warnStartups(player, player.getServer());
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
     	/*if(!SaveSync.loadedSync) {
     		return; // don't bother with hamachi if we're not syncing
     	}
