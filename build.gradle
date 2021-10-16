@@ -71,7 +71,6 @@ dependencies {
 	compile "org.java-websocket:Java-WebSocket:1.5.1"
 
 	compile 'com.github.Querz:NBT:6.0'
-
 }
 
 processResources {
