@@ -8,26 +8,21 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.awt.Desktop;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.message.BasicNameValuePair;
 
 import com.cheale14.savesync.client.GithubOauthCallback;
 import com.cheale14.savesync.client.GithubUser;
 import com.cheale14.savesync.client.OAuth2Listener;
 import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.SaveSync.SaveConfig;
+import com.cheale14.savesync.http.HttpError;
+import com.cheale14.savesync.http.HttpUtil;
 import com.google.gson.Gson;
 
 import net.minecraft.client.gui.GuiScreen;
@@ -82,27 +77,22 @@ public class SyncLoginGui extends GuiScreen {
 		displayMessage = "Exchanging code for access token...";
 		
 		// make POST to github;
-		HttpClient client= HttpClientBuilder.create().build();
-
 		Gson gson = new Gson();
 		GithubOauthCallback data;
 		try {
 
-			HttpPost request = new HttpPost("https://github.com/login/oauth/access_token");
-			request.addHeader("Accept", "application/json");
-			List<NameValuePair> pairs = new ArrayList<NameValuePair>();
-			pairs.add(new BasicNameValuePair("client_id", id));
-			pairs.add(new BasicNameValuePair("client_secret", hid_den));
-			pairs.add(new BasicNameValuePair("code", code));
+			Map<String, String> headers = new HashMap<>();
+			headers.put("Accept", "application/json");
 			
-			request.setEntity(new UrlEncodedFormEntity(pairs ));
-			HttpResponse resp = client.execute(request);
-			SaveSync.logger.info(resp.getStatusLine().getReasonPhrase());
 			
-			displayMessage = "Token exchange: " + resp.getStatusLine().toString();
+			Map<String, String> form = new HashMap<>();
+			form.put("client_id", id);
+			form.put("client" + "_" + "secret", hid_den);
+			form.put("code", code);
 			
-			String json = SaveSync.readString(resp.getEntity());
-			SaveSync.logger.info(json);
+			String json = HttpUtil.POST("https://github.com/login/oauth/access_token", form, headers);
+			
+			displayMessage = "Token exchange";
 			
 			data = gson.fromJson(json, GithubOauthCallback.class);
 			
@@ -111,6 +101,8 @@ public class SyncLoginGui extends GuiScreen {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return 500;
+		} catch(HttpError e) {
+			return e.getStatusCode();
 		}
 
 		GithubUser user;

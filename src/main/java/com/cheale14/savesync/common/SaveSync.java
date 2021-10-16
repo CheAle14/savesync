@@ -60,20 +60,16 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLHandshakeException;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.InitCommand;
@@ -90,6 +86,8 @@ import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import com.cheale14.savesync.client.GithubUser;
+import com.cheale14.savesync.http.HttpError;
+import com.cheale14.savesync.http.HttpUtil;
 import com.cheale14.savesync.interop.DummyFTBBackups;
 import com.google.gson.Gson;
 
@@ -263,29 +261,15 @@ public class SaveSync
         }
     }
     
-    public static String readString(HttpEntity entity) throws UnsupportedEncodingException, IllegalStateException, IOException {
-		BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent(), "UTF-8"));
-		StringBuilder builder = new StringBuilder();
-		for (String line = null; (line = reader.readLine()) != null;) {
-		    builder.append(line).append("\n");
-		}
-		return builder.toString();
-	}
-    
-    public static GithubUser GetCurrentUser(String accessToken) throws ClientProtocolException, IOException {
-    	HttpClient client = HttpClientBuilder.create().build();
-    	HttpGet get = new HttpGet("https://api.github.com/user");
-		get.addHeader("Accept", "application/vnd.github.v3+json");
-		get.addHeader("Authorization", "token " + accessToken);
+    public static GithubUser GetCurrentUser(String accessToken) throws IOException {
+		Map<String, String> headers = new HashMap<>();
+		headers.put("Accept", "application/vnd.github.v3+json");
+		headers.put("Authorization", "token " + accessToken);
 		
-		HttpResponse getResponse = client.execute(get);
-		
-		
-		
-		String json = readString(getResponse.getEntity());
-		SaveSync.logger.info(getResponse.getStatusLine().toString() + ": " + json);
-		
-		if(getResponse.getStatusLine().getStatusCode() != 200) {
+		String json;
+		try {
+			json = HttpUtil.GET("https://api.github.com/user", headers);
+		} catch (HttpError e) {
 			return null;
 		}
 		
@@ -297,7 +281,7 @@ public class SaveSync
     }
     
     static GithubUser savedUser = null;
-    public static GithubUser GetCurrentUser() throws ClientProtocolException, IOException {
+    public static GithubUser GetCurrentUser() throws IOException {
     	if(SaveSync.HasAPIKey()) {
     		if(savedUser == null) {
     			savedUser = GetCurrentUser(SaveConfig.API_Key);
