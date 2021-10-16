@@ -19,7 +19,7 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 
 
 // REMEMBER: must set the version in SyncSave.java static final field.
-version = "0.12"
+version = "0.13"
 group = "com.cheale14.savesync" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = "savesync"
 
