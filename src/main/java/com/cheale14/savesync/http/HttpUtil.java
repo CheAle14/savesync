@@ -2,6 +2,7 @@ package com.cheale14.savesync.http;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -24,9 +25,17 @@ public class HttpUtil {
 		StringBuilder content;
 		
 		logger.debug("[HTTP-" + con.getRequestMethod() + "] >>" + con.getURL().toString());
+		
+		InputStream stream;
+
+		if(con.getResponseCode() < 200 || con.getResponseCode() > 299) {
+			stream = con.getErrorStream();
+		} else {
+			stream = con.getInputStream();
+		}
 
         try (BufferedReader in = new BufferedReader(
-                new InputStreamReader(con.getInputStream()))) {
+                new InputStreamReader(stream))) {
 
             String line;
             content = new StringBuilder();

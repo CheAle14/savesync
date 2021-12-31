@@ -86,10 +86,16 @@ import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import com.cheale14.savesync.client.GithubUser;
+import com.cheale14.savesync.client.SaveSyncIPC;
+import com.cheale14.savesync.client.discord.IPCClient;
+import com.cheale14.savesync.client.discord.IPCHandler;
+import com.cheale14.savesync.client.discord.IPCOpCode;
+import com.cheale14.savesync.client.discord.IPCPacket;
 import com.cheale14.savesync.http.HttpError;
 import com.cheale14.savesync.http.HttpUtil;
 import com.cheale14.savesync.interop.DummyFTBBackups;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 
 @Mod(modid = SaveSync.MODID, name = SaveSync.NAME, version = SaveSync.VERSION, acceptableRemoteVersions = "*")
@@ -98,6 +104,8 @@ public class SaveSync
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
     public static final String VERSION = "0.13";
+    public static final String DS_CLIENT_ID = "926528783622754336";
+    public static final String DS_CLIENT_SECRET = "ILlVFYWULekNKsGZLQbfe-BJbMu0Yfc9";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
@@ -148,6 +156,20 @@ public class SaveSync
     {
     	configFile = event.getSuggestedConfigurationFile();
         logger = event.getModLog();
+        
+        IPCClient ds = new IPCClient();
+        ds.setName("IPC Thread");
+        ds.setHandler(new SaveSyncIPC(ds));
+        try {
+			ds.Start();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			logger.error("Failed");
+			
+		}
+        
+        
         MinecraftForge.EVENT_BUS.register(this);
     	if(proxy == null) {
     		logger.info("Proxy null.");
