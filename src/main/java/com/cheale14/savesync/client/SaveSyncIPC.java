@@ -23,9 +23,6 @@ public class SaveSyncIPC implements IPCHandler {
 	private IPCClient ipc;
 	private Logger logger;
 	
-	private String userId;
-	private String userInfo;
-	
 	// Auth information
 	private String auth_token;
 	
@@ -50,9 +47,12 @@ public class SaveSyncIPC implements IPCHandler {
 	public void OnMessage(String event, JsonObject data) throws IOException {
 		if("READY".equals(event)) {
 			JsonObject usr = data.get("user").getAsJsonObject();
-			userId = usr.get("id").getAsString();
-			userInfo = usr.get("username").getAsString() + "#" + usr.get("discriminator").getAsString();
-			logger.info("Connected to Discord with user " + userInfo + " (" + userId + ")");
+			ipc.user = new DiscordUser();
+			ipc.user.id = usr.get("id").getAsString();
+			ipc.user.username = usr.get("username").getAsString();
+			ipc.user.discriminator = usr.get("discriminator").getAsString();
+			
+			logger.info("Connected to Discord with user " + ipc.user.getFullName() + " (" + ipc.user.id + ")");
 			
 			// We want to authenticate.
 			IPCPayload auth_payload = new IPCPayload();
@@ -67,11 +67,13 @@ public class SaveSyncIPC implements IPCHandler {
 			sendArgs.add("scopes", sendArgsScopes);
 
 			auth_payload.args = sendArgs;
-
+			ipc.state(IPCState.PENDING_AUTH);
 			IPCFramePacket response = ipc.SendWaitResponse(auth_payload);
 			if("ERROR".equals(response.payload.evt)) {
+				ipc.state(IPCState.ERRORED);
 				logger.warn("User refused to authenticate?? How rude.");
 			} else {
+				ipc.state(IPCState.AUTHORIZED);
 				String token = response.payload.data.getAsJsonObject().get("code").getAsString();
 				logger.info("Token received as: " + token);
 

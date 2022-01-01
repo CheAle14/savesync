@@ -21,6 +21,7 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.cheale14.savesync.client.discord.GuiDiscord;
 import com.cheale14.savesync.client.gui.SyncLoginGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui.SyncType;
@@ -29,6 +30,7 @@ import com.cheale14.savesync.client.gui.SyncReplaceIngameMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiIngameMenu;
 import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.gui.GuiMultiplayer;
@@ -36,6 +38,7 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiWorldSelection;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.GuiOpenEvent;
+import net.minecraftforge.client.event.GuiScreenEvent.ActionPerformedEvent;
 import net.minecraftforge.client.event.GuiScreenEvent.DrawScreenEvent;
 import net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent;
 import net.minecraftforge.fml.client.FMLClientHandler;
@@ -54,6 +57,7 @@ import net.querz.nbt.tag.CompoundTag;
 import net.querz.nbt.tag.ListTag;
 
 public class ClientProxy extends CommonProxy {
+
 	@SubscribeEvent
 	public void Render(InitGuiEvent.Pre e) {
 		GuiScreen gui = e.getGui();
@@ -76,7 +80,54 @@ public class ClientProxy extends CommonProxy {
 				return;
 			renderMultiplayerMenu((GuiMultiplayer)gui);
 		} 
-		
+	}
+	
+	final int menuBtnId = 231;
+	
+	@SubscribeEvent
+	public void RenderPost(InitGuiEvent.Post e) {
+		GuiScreen gui = e.getGui();
+		if(gui == null)
+			return;
+		SaveSync.logger.info("Init.Post: " + gui.getClass().getName());
+		if(gui instanceof GuiMainMenu) {
+			GuiButton btn = new GuiButton(menuBtnId, 0, 0, 70, 20, "Discord");
+			e.getButtonList().add(btn);
+			SaveSync.logger.info("Injected Discord button");
+		}
+	}
+	@SubscribeEvent
+	public void ActionPerformedPre(ActionPerformedEvent.Pre e) {
+		GuiButton btn = e.getButton();
+		GuiScreen src = e.getGui();
+		if(btn == null || src == null)
+			return;
+		SaveSync.logger.info("AP.Pre: " + src.getClass().getName() + " :: " + btn.id);
+	}
+	@SubscribeEvent
+	public void ActionPerformedPost(ActionPerformedEvent.Post e) {
+		GuiButton btn = e.getButton();
+		GuiScreen src = e.getGui();
+		if(btn == null || src == null)
+			return;
+		SaveSync.logger.info("AP.Pst: " + src.getClass().getName() + " :: " + btn.id);
+		if(src instanceof GuiMainMenu) {
+			if(btn.id == menuBtnId) {
+				SaveSync.logger.info("Clicked our button!!!");
+				if(SaveSync.ds.HasStarted()) {
+					SaveSync.logger.info("We've already connected!");
+				} else {
+					try {
+						SaveSync.ds.Start();
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+						logger.error("Failed");
+					}
+				}
+				src.mc.displayGuiScreen(new GuiDiscord(src, SaveSync.ds));
+			}
+		}
 	}
 	
 	ModContainer findModIndex() {

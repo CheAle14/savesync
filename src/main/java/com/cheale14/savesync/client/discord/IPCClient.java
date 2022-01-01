@@ -8,9 +8,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,21 +26,38 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 
 import net.minecraft.client.Minecraft;
-import sun.awt.windows.ThemeReader;
 
 public class IPCClient extends Thread {
 	public static Logger logger = LogManager.getLogger("savesync-IPC");
 	private RandomAccessFile socket;
 	public Gson _gson = new Gson();
-	private IPCHandler _handler;
+	private List<IPCHandler> _handlers = new ArrayList<IPCHandler>();
+	private IPCState _state = IPCState.DISCONNECTED;
+	
+	public DiscordUser user;
+	
+	public boolean HasStarted() {
+		return _state != IPCState.DISCONNECTED;
+	}
+	public IPCState state() {
+		return _state;
+	}
+	public void state(IPCState st) {
+		_state = st;
+		emit((IPCHandler h) -> {
+			h.OnState(st);
+		});
+	}
 	
 	public IPCClient() {
 	}
 	
-	public void setHandler(IPCHandler handler) {
-		_handler = handler;
+	public void addHandler(IPCHandler handler) {
+		_handlers.add(handler);
 	}
-	
+	public void removeHandler(IPCHandler handler) {
+		_handlers.remove(handler);
+	}
 	
 	private RandomAccessFile _connect(int id) throws FileNotFoundException {
 		String path = "\\\\?\\pipe\\discord-ipc-" + id;
@@ -117,6 +137,7 @@ public class IPCClient extends Thread {
 	}
 	
 	private void connect() throws IOException {
+		state(IPCState.CONNECTING);
 		socket = null;
 		int id = 0;
 		while(socket == null) {
@@ -132,6 +153,7 @@ public class IPCClient extends Thread {
 			}
 		}
 		logger.info("Connected to IPC pipe, sending handshake..");
+		state(IPCState.CONNECTED);
 		this.Send(new IPCHandshakePacket());
 	}
 	
@@ -185,6 +207,21 @@ public class IPCClient extends Thread {
 		return v.packet;
 	}
 	
+	Thread emit(Consumer<IPCHandler> cns) {
+		Thread emitThread = new Thread(() -> {
+			try {
+				for(IPCHandler handle : _handlers) {
+					cns.accept(handle);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+				logger.error(e);
+			}
+		});
+		emitThread.start();
+		return emitThread;
+	}
+	
 	@Override
 	public void run() {
 		int errors = 0;
@@ -192,6 +229,9 @@ public class IPCClient extends Thread {
 			try {
 				logger.info("Waiting for next packet...");
 				IPCPacket next = read();
+				emit((IPCHandler h) -> {
+					h.OnPacketPre(next);
+				});
 				if(next.op == IPCOpCode.FRAME) {
 					IPCFramePacket p = (IPCFramePacket)next;
 					if(waitings.containsKey(p.payload.nonce)) {
@@ -202,19 +242,14 @@ public class IPCClient extends Thread {
 						return;
 					}
 				}
-				Runnable x = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							_handler.OnPacket(next);
-						} catch (IOException e) {
-							e.printStackTrace();
-							logger.error(e);
-						}
-						
+				emit((IPCHandler h) -> {
+					try {
+						h.OnPacket(next);
+					} catch (IOException e) {
+						e.printStackTrace();
+						logger.catching(e);
 					}
-				};
-				new Thread(x).start();
+				});
 			} catch (IOException e) {
 				e.printStackTrace();
 				logger.error(e);

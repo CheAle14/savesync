@@ -142,6 +142,7 @@ public class SaveSync
     public static boolean hamachiRunning = false;
     public static String hamachiIP = null;
     public static String lanPort = null;
+    public static IPCClient ds = null;
     
     public static File configFile;
     
@@ -157,17 +158,9 @@ public class SaveSync
     	configFile = event.getSuggestedConfigurationFile();
         logger = event.getModLog();
         
-        IPCClient ds = new IPCClient();
+        ds = new IPCClient();
         ds.setName("IPC Thread");
-        ds.setHandler(new SaveSyncIPC(ds));
-        try {
-			ds.Start();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			logger.error("Failed");
-			
-		}
+        ds.addHandler(new SaveSyncIPC(ds));
         
         
         MinecraftForge.EVENT_BUS.register(this);
