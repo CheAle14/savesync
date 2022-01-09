@@ -6,6 +6,7 @@ public enum IPCState {
 	CONNECTED,
 	PENDING_AUTH,
 	AUTHORIZED,
+	AUTHENTICATED,
 	ERRORED
 	;
 }	

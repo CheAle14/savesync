@@ -8,4 +8,11 @@ public class IPCPayload {
 	public String nonce;
 	public JsonElement data;
 	public JsonElement args;
+
+	public static IPCPayload Command(String name, JsonElement args) {
+		IPCPayload x = new IPCPayload();
+		x.cmd = name;
+		x.args = args;
+		return x;
+	}
 }

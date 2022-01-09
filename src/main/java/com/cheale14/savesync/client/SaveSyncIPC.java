@@ -23,9 +23,6 @@ public class SaveSyncIPC implements IPCHandler {
 	private IPCClient ipc;
 	private Logger logger;
 	
-	// Auth information
-	private String auth_token;
-	
 	@Override
 	public void OnPacket(IPCPacket packet) throws IOException {
 		if(packet.op == IPCOpCode.PING) {
@@ -100,7 +97,13 @@ public class SaveSyncIPC implements IPCHandler {
 					return;
 				}
 				JsonObject obj = new JsonParser().parse(oauth).getAsJsonObject();
-				auth_token = obj.get("access_token").getAsString();
+				ipc.auth_token = obj.get("access_token").getAsString();
+				
+				JsonObject auth = new JsonObject();
+				auth.addProperty("access_token", ipc.auth_token);
+				
+				IPCFramePacket authResponse = ipc.SendWaitResponse(IPCPayload.Command("AUTHENTICATE", auth));
+				ipc.state(IPCState.AUTHENTICATED);
 			}
 		}
 	}

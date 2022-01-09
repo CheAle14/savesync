@@ -34,7 +34,9 @@ public class IPCClient extends Thread {
 	private List<IPCHandler> _handlers = new ArrayList<IPCHandler>();
 	private IPCState _state = IPCState.DISCONNECTED;
 	
+	public String auth_token;
 	public DiscordUser user;
+	public Map<String, DiscordGuild> guilds = new HashMap<String, DiscordGuild>();
 	
 	public boolean HasStarted() {
 		return _state != IPCState.DISCONNECTED;
@@ -170,12 +172,12 @@ public class IPCClient extends Thread {
 		Send(packet.data, packet.op);
 	}
 	public void Send(IPCPayload payload) throws IOException {
-		Send(_gson.toJsonTree(payload));
-	}
-	public IPCFramePacket SendWaitResponse(IPCPayload payload) throws IOException {
 		if(payload.nonce == null) {
 			payload.nonce = UUID.randomUUID().toString();
 		}
+		Send(_gson.toJsonTree(payload));
+	}
+	public IPCFramePacket SendWaitResponse(IPCPayload payload) throws IOException {
 		Send(payload);
 		return wait_for(payload.nonce);
 	}
@@ -239,7 +241,7 @@ public class IPCClient extends Thread {
 						AutoResetEvent are = waitings.get(p.payload.nonce);
 						are.set(p);
 						waitings.remove(p.payload.nonce);
-						return;
+						continue;
 					}
 				}
 				emit((IPCHandler h) -> {
