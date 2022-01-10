@@ -6,7 +6,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
-import com.cheale14.savesync.common.SaveSync.SaveConfig;
+import com.cheale14.savesync.SaveSync;
+import com.cheale14.savesync.SaveSync.SaveConfig;
 
 import net.minecraft.util.StringUtils;
 import net.minecraftforge.fml.common.Loader;

@@ -19,8 +19,8 @@ import org.apache.logging.log4j.Logger;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
+import com.cheale14.savesync.SaveSync;
 import com.cheale14.savesync.common.IWebSocketHandler;
-import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.WSPacket;
 import com.google.gson.Gson;
 

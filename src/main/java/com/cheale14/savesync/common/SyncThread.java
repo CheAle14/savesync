@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ProgressMonitor;
 
+import com.cheale14.savesync.SaveSync;
 import com.cheale14.savesync.client.gui.SyncProgressGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui.SyncType;
 

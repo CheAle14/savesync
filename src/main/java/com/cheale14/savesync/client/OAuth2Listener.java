@@ -14,8 +14,8 @@ import java.net.Socket;
 import java.util.Date;
 import java.util.StringTokenizer;
 
+import com.cheale14.savesync.SaveSync;
 import com.cheale14.savesync.client.gui.SyncLoginGui;
-import com.cheale14.savesync.common.SaveSync;
 
 
 public class OAuth2Listener implements Runnable {

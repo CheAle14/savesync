@@ -7,7 +7,7 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.lwjgl.input.Mouse;
 
-import com.cheale14.savesync.common.SaveSync;
+import com.cheale14.savesync.SaveSync;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;

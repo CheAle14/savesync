@@ -5,9 +5,9 @@ import java.net.URI;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 
+import com.cheale14.savesync.SaveSync;
 import com.cheale14.savesync.client.WSClient;
 import com.cheale14.savesync.common.IWebSocketHandler;
-import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.WSPacket;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;

@@ -1,6 +1,6 @@
 package com.cheale14.savesync.server.commands;
 
-import com.cheale14.savesync.common.SaveSync;
+import com.cheale14.savesync.SaveSync;
 
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;

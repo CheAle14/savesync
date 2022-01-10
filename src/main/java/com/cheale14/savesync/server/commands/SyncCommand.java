@@ -7,8 +7,8 @@ import java.net.URISyntaxException;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
 
+import com.cheale14.savesync.SaveSync;
 import com.cheale14.savesync.common.MCCommandMonitor;
-import com.cheale14.savesync.common.SaveSync;
 import com.cheale14.savesync.common.SyncFileInfo;
 
 import net.minecraft.command.CommandBase;
