@@ -2,8 +2,6 @@ package com.cheale14.savesync.client;
 
 import com.cheale14.savesync.common.CommonProxy;
 import com.cheale14.savesync.common.Icon;
-import com.cheale14.savesync.common.SaveSync;
-import com.cheale14.savesync.common.SaveSync.SaveConfig;
 import com.cheale14.savesync.common.SyncThread;
 import com.mojang.realmsclient.dto.RealmsServer.McoServerComparator;
 
@@ -21,6 +19,8 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.cheale14.savesync.SaveSync;
+import com.cheale14.savesync.SaveSync.SaveConfig;
 import com.cheale14.savesync.client.gui.SyncLoginGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui;
 import com.cheale14.savesync.client.gui.SyncProgressGui.SyncType;

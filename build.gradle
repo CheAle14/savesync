@@ -19,7 +19,7 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 
 
 // REMEMBER: must set the version in SyncSave.java static final field.
-version = "0.13"
+version = mc_version + "-" + mod_version
 group = "com.cheale14.savesync" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = "savesync"
 
@@ -29,7 +29,7 @@ compileJava {
 }
 
 minecraft {
-    version = "1.12.2-14.23.5.2847"
+    version = mc_version + "-" + forge_version
     runDir = "run"
     
     // the mappings can be changed at any time, and must be in the following format.
@@ -38,6 +38,9 @@ minecraft {
     // Use non-default mappings at your own risk. they may not always work.
     // simply re-run your setup task after changing the mappings to update your workspace.
     mappings = "snapshot_20171003"
+    
+    replaceIn 'com/cheale14/savesync/SaveSync.java'
+    replace '$VERSION$', mod_version
 
     // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
 }

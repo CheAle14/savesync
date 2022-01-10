@@ -4,6 +4,8 @@ import java.awt.Component;
 
 import org.eclipse.jgit.lib.ProgressMonitor;
 
+import com.cheale14.savesync.SaveSync;
+
 
 public class SyncProgMonitor implements ProgressMonitor {
 	private String currentTask;

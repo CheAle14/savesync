@@ -21,8 +21,9 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.lib.ProgressMonitor;
 
+import com.cheale14.savesync.SaveSync;
+import com.cheale14.savesync.SaveSync.SaveConfig;
 import com.cheale14.savesync.client.WSClient;
-import com.cheale14.savesync.common.SaveSync.SaveConfig;
 import com.cheale14.savesync.server.commands.SyncCommand;
 import com.cheale14.savesync.server.commands.SyncDedicatedPublishCommand;
 import com.cheale14.savesync.server.commands.SyncPublishCommand;
@@ -134,8 +135,9 @@ public class CommonProxy {
 		
 		try {
 			this.PublishServer(obj, null);
-		} catch (KeyManagementException | NoSuchAlgorithmException e) {
+		} catch (KeyManagementException | NoSuchAlgorithmException | InterruptedException  e) {
 			logger.error(e);
+			e.printStackTrace();
 		}
 	}
     
@@ -184,7 +186,7 @@ public class CommonProxy {
 	private WSClient websocket;
 	private String wsId;
 	
-	public void PublishServer(JsonObject serverData, IWebSocketHandler handler) throws KeyManagementException, NoSuchAlgorithmException {
+	public void PublishServer(JsonObject serverData, IWebSocketHandler handler) throws KeyManagementException, NoSuchAlgorithmException, InterruptedException {
 		if(wsId != null) {
 			serverData.addProperty("id", wsId);
 		}
@@ -222,6 +224,8 @@ public class CommonProxy {
 				public void OnClose(int errorCode, String reason) {
 					if(handler != null)
 						handler.OnClose(errorCode, reason);
+					
+					
 				}
 				@Override
 				public void OnError(Exception error) {
@@ -232,6 +236,10 @@ public class CommonProxy {
 			});
 			websocket.connect();
 		} else {
+			if(websocket.isClosing() || websocket.isClosed()) {
+				logger.info("[WS] Reconnecting websocket");
+				websocket.reconnectBlocking();
+			}
 			websocket.send(sending);
 		}
 	}

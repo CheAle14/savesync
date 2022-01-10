@@ -10,10 +10,10 @@ import java.security.NoSuchAlgorithmException;
 
 import org.lwjgl.input.Keyboard;
 
+import com.cheale14.savesync.SaveSync;
+import com.cheale14.savesync.SaveSync.SaveConfig;
 import com.cheale14.savesync.client.WSClient;
 import com.cheale14.savesync.common.IWebSocketHandler;
-import com.cheale14.savesync.common.SaveSync;
-import com.cheale14.savesync.common.SaveSync.SaveConfig;
 import com.cheale14.savesync.common.WSPacket;
 import com.google.gson.JsonObject;
 
@@ -200,7 +200,7 @@ public class SyncPublishGui extends GuiShareToLan {
 						}
 						
 					});
-				} catch (KeyManagementException | NoSuchAlgorithmException e) {
+				} catch (KeyManagementException | NoSuchAlgorithmException | InterruptedException e) {
 					SaveSync.logger.error(e);
 				}
             	this.mc.ingameGUI.getChatGUI().printChatMessage(

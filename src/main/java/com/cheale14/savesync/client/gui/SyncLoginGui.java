@@ -16,11 +16,11 @@ import java.awt.Desktop;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.cheale14.savesync.SaveSync;
+import com.cheale14.savesync.SaveSync.SaveConfig;
 import com.cheale14.savesync.client.GithubOauthCallback;
 import com.cheale14.savesync.client.GithubUser;
 import com.cheale14.savesync.client.OAuth2Listener;
-import com.cheale14.savesync.common.SaveSync;
-import com.cheale14.savesync.common.SaveSync.SaveConfig;
 import com.cheale14.savesync.http.HttpError;
 import com.cheale14.savesync.http.HttpUtil;
 import com.google.gson.Gson;

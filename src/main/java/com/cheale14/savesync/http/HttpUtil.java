@@ -14,7 +14,7 @@ import java.util.StringJoiner;
 
 import org.apache.logging.log4j.Logger;
 
-import com.cheale14.savesync.common.SaveSync;
+import com.cheale14.savesync.SaveSync;
 
 public class HttpUtil {
 	

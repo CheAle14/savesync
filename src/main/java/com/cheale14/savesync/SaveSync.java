@@ -1,4 +1,4 @@
-package com.cheale14.savesync.common;
+package com.cheale14.savesync;
 
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
@@ -86,6 +86,12 @@ import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import com.cheale14.savesync.client.GithubUser;
+import com.cheale14.savesync.common.CommonProxy;
+import com.cheale14.savesync.common.SavedMod;
+import com.cheale14.savesync.common.SyncException;
+import com.cheale14.savesync.common.SyncFileInfo;
+import com.cheale14.savesync.common.SyncProgMonitor;
+import com.cheale14.savesync.common.Version;
 import com.cheale14.savesync.http.HttpError;
 import com.cheale14.savesync.http.HttpUtil;
 import com.cheale14.savesync.interop.DummyFTBBackups;
@@ -97,7 +103,7 @@ public class SaveSync
 {
     public static final String MODID = "savesync";
     public static final String NAME = "Save Sync";
-    public static final String VERSION = "0.13";
+    public static final String VERSION = "$VERSION$";
     
     public static final String SYNCNAME = "SYNC.txt";
     public static final String MODSNAME = "MODS.txt";
@@ -144,7 +150,7 @@ public class SaveSync
     }
 
     @EventHandler
-    public void preInit(FMLPreInitializationEvent event)
+    public void preInit(FMLPreInitializationEvent event) throws Exception
     {
     	configFile = event.getSuggestedConfigurationFile();
         logger = event.getModLog();
