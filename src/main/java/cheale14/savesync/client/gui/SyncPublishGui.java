@@ -9,8 +9,10 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 
 import com.google.gson.JsonObject;
+import com.mojang.blaze3d.matrix.MatrixStack;
 
 import cheale14.savesync.SaveSync;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ShareToLanScreen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -59,7 +61,7 @@ public class SyncPublishGui extends ShareToLanScreen {
 	public void init() {
 
 		txtServerName = new TextFieldWidget(font, this.width / 2 - 155, 125, 300, 20, new StringTextComponent("Name"));
-		txtServerName.setMaxLength(32)
+		txtServerName.setMaxLength(32);
 		txtIpAddress = new TextFieldWidget(font, this.width / 2 - 155, 150, 150, 20, new StringTextComponent("127.0.0.1"));
 		txtGameKind = new TextFieldWidget(font, this.width / 2 - 155, 175, 150, 20, new StringTextComponent("modded/omnifactory"));
 		txtGameKind.setValue("modded/x");
@@ -74,131 +76,124 @@ public class SyncPublishGui extends ShareToLanScreen {
 		this.addButton(new Button(this.width / 2 + 5, 150, 70, 20, new StringTextComponent("Hamachi"), new Button.IPressable() {
 			@Override
 			public void onPress(Button p_onPress_1_) {
-				
+				setHamachi();
 			}
 		}));
 		this.addButton(new Button(this.width / 2 + 75, 150, 70, 20, new StringTextComponent("External"), new Button.IPressable() {
 			@Override
 			public void onPress(Button p_onPress_1_) {
-				// TODO Auto-generated method stub
-				
+				setExternal();
 			}
 		}));
+		
 	}
 	
-
+	
 	@Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-    	this.txtServerName.drawTextBox();
-    	this.txtIpAddress.drawTextBox();
-    	this.txtGameKind.drawTextBox();
-    	
-    	int white = Color.white.getRGB();
-		this.drawString(fontRenderer, "Name: ", this.txtServerName.x - 30, this.txtServerName.y + 10, white);
-		this.drawString(fontRenderer, "IP: ", this.txtIpAddress.x - 30, this.txtIpAddress.y + 10, white);
-		this.drawString(fontRenderer, "Kind: ", this.txtGameKind.x - 30, this.txtGameKind.y + 10, white);
-    	
-    	super.drawScreen(mouseX, mouseY, partialTicks);
+	public void render(MatrixStack pMatrixStack, int pMouseX, int pMouseY, float pPartialTicks) {
+		this.renderBackground(pMatrixStack);
+		this.txtServerName.render(pMatrixStack, pMouseX, pMouseY, pPartialTicks);
+		this.txtIpAddress.render(pMatrixStack, pMouseX, pMouseY, pPartialTicks);
+		this.txtGameKind.render(pMatrixStack, pMouseX, pMouseY, pPartialTicks);
+		
+		super.render(pMatrixStack, pMouseX, pMouseY, pPartialTicks);
     }
+	
+	void setHamachi() {
+		String ip;
+		try {
+			ip = SaveSync.getHamachiIP();
+		} catch (Exception e) {
+			SaveSync.logger.error(e);
+			ip = e.getMessage();
+		}
+		if(ip == null) {
+			ip = "failed to get";
+		}
+		txtIpAddress.setValue(ip);
+	}
+	
+	void setExternal() {
+		String ip = SaveSync.getExternalIp();
 
-	@Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-    	if(button.id == 101) {
-    		InetAddress addr = null;
-    		try {
-    			
-        		addr = InetAddress.getByName(txtIpAddress.getText());
-    		} catch(UnknownHostException e) {
-    			SaveSync.logger.error(e);
-    		}
-    		if(addr == null || addr.isLoopbackAddress()) {
-    			txtIpAddress.setFocused(true);
-    			txtIpAddress.setTextColor(Color.red.getRGB());
-    			return;
-    		}
+		txtIpAddress.setValue(ip);
+	}
+	
+	void done() {
+		InetAddress addr = null;
+		try {
+			
+    		addr = InetAddress.getByName(txtIpAddress.getValue());
+		} catch(UnknownHostException e) {
+			SaveSync.LOGGER.error(e);
+		}
+		if(addr == null || addr.isLoopbackAddress()) {
+			txtIpAddress.setFocus(true);
+			txtIpAddress.setTextColor(Color.red.getRGB());
+			return;
+		}
 
-            this.mc.displayGuiScreen((GuiScreen)null);
-            String s = this.mc.getIntegratedServer().shareToLAN(
-            		GameType.getByName((String)getProperty("gameMode")), 
-            		(boolean)getProperty("allowCheats"));
-            
-            ITextComponent itextcomponent;
-            if (s != null)
-            {
-                itextcomponent = new TextComponentTranslation("commands.publish.started", new Object[] {s});
-            }
-            else
-            {
-                itextcomponent = new TextComponentString("commands.publish.failed");
-            }
-            this.mc.ingameGUI.getChatGUI().printChatMessage(itextcomponent);
-            
-            Minecraft mc = this.mc;
-            
-            if(s != null) {
-            	// i know we're doing this if twice
-            	JsonObject obj = getJson();
-            	obj.addProperty("port", s);
+        this.minecraft.setScreen((Screen)null);
 
-            	try {
-					SaveSync.proxy.PublishServer(obj, new IWebSocketHandler() {
 
-						@Override
-						public void OnPacket(WSPacket packet) {
-					    	mc.ingameGUI.getChatGUI().printChatMessage(
-					    			new TextComponentString(TextFormatting.GREEN + "Server should now be on the masterlist."));
-						}
+        int port = 25564;
+        boolean success = this.minecraft.getSingleplayerServer().publishServer(
+        		GameType.byName((String)getProperty("gameMode")), 
+        		(boolean)getProperty("allowCheats"), port);
+        
 
-						@Override
-						public void OnOpen() {
-					    	mc.ingameGUI.getChatGUI().printChatMessage(
-					    			new TextComponentString("Connection established, sending details"));
-						}
+        ITextComponent itextcomponent;
+        if(success) {
+        	itextcomponent = new StringTextComponent("Successfully published server");
+        } else {
+        	itextcomponent = new StringTextComponent("Failed to publish server");
+        }
+        this.minecraft.gui.getChat().addMessage(itextcomponent);
+        
+        Minecraft mc = this.minecraft;
+        
+        if(success) {
+        	// i know we're doing this if twice
+        	JsonObject obj = getJson();
+        	obj.addProperty("port", port);
 
-						@Override
-						public void OnClose(int errorCode, String reason) {
-							// TODO Auto-generated method stub
+        	try {
+				SaveSync.proxy.PublishServer(obj, new IWebSocketHandler() {
 
-					    	mc.ingameGUI.getChatGUI().printChatMessage(
-					    			new TextComponentString("Connection closed: " + errorCode + ", " + reason));
-						}
+					@Override
+					public void OnPacket(WSPacket packet) {
+				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    			new TextComponentString(TextFormatting.GREEN + "Server should now be on the masterlist."));
+					}
 
-						@Override
-						public void OnError(Exception error) {
-							// TODO Auto-generated method stub
+					@Override
+					public void OnOpen() {
+				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    			new TextComponentString("Connection established, sending details"));
+					}
 
-					    	mc.ingameGUI.getChatGUI().printChatMessage(
-					    			new TextComponentString(TextFormatting.RED + "Connection errored: " + error.toString()));
-						}
-						
-					});
-				} catch (KeyManagementException | NoSuchAlgorithmException | InterruptedException e) {
-					SaveSync.logger.error(e);
-				}
-            	this.mc.ingameGUI.getChatGUI().printChatMessage(
-            			new TextComponentString("Attempting to publish server details on https://ml-api.uk.ms/masterlist"));
-            }
-    	} else if(button.id == 10) {
-    		// hamachi
-    		String ip;
-			try {
-				ip = SaveSync.getHamachiIP();
-			} catch (Exception e) {
+					@Override
+					public void OnClose(int errorCode, String reason) {
+						// TODO Auto-generated method stub
+
+				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    			new TextComponentString("Connection closed: " + errorCode + ", " + reason));
+					}
+
+					@Override
+					public void OnError(Exception error) {
+						// TODO Auto-generated method stub
+
+				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    			new TextComponentString(TextFormatting.RED + "Connection errored: " + error.toString()));
+					}
+					
+				});
+			} catch (KeyManagementException | NoSuchAlgorithmException | InterruptedException e) {
 				SaveSync.logger.error(e);
-				ip = e.getMessage();
 			}
-    		if(ip == null) {
-    			ip = "failed to get";
-    		}
-    		txtIpAddress.setText(ip);
-    	} else if(button.id == 11) {
-    		// external
-    		String ip = SaveSync.getExternalIp();
-
-    		txtIpAddress.setText(ip);
-    		
-    	} else {
-    		super.actionPerformed(button);
-    	}
-    }
+        	this.minecraft.ingameGUI.getChatGUI().printChatMessage(
+        			new TextComponentString("Attempting to publish server details on https://ml-api.uk.ms/masterlist"));
+        }
+	}
 }
