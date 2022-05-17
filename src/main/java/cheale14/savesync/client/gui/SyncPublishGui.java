@@ -11,7 +11,10 @@ import java.security.NoSuchAlgorithmException;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.matrix.MatrixStack;
 
+import cheale14.savesync.HttpError;
 import cheale14.savesync.SaveSync;
+import cheale14.savesync.common.IWebSocketHandler;
+import cheale14.savesync.common.WSPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ShareToLanScreen;
@@ -104,7 +107,7 @@ public class SyncPublishGui extends ShareToLanScreen {
 		try {
 			ip = SaveSync.getHamachiIP();
 		} catch (Exception e) {
-			SaveSync.logger.error(e);
+			SaveSync.LOGGER.error(e);
 			ip = e.getMessage();
 		}
 		if(ip == null) {
@@ -114,9 +117,15 @@ public class SyncPublishGui extends ShareToLanScreen {
 	}
 	
 	void setExternal() {
-		String ip = SaveSync.getExternalIp();
-
-		txtIpAddress.setValue(ip);
+		try {
+			String ip = SaveSync.getExternalIp();
+			txtIpAddress.setValue(ip);
+		} catch (IOException | HttpError e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			SaveSync.LOGGER.error("Could not get external IP");
+			txtIpAddress.setValue(":error:");
+		}
 	}
 	
 	void done() {
@@ -158,17 +167,17 @@ public class SyncPublishGui extends ShareToLanScreen {
         	obj.addProperty("port", port);
 
         	try {
-				SaveSync.proxy.PublishServer(obj, new IWebSocketHandler() {
+				SaveSync.PROXY.PublishServer(obj, new IWebSocketHandler() {
 
 					@Override
 					public void OnPacket(WSPacket packet) {
-				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    	mc.gui.getChat().addMessage(
 				    			new StringTextComponent(TextFormatting.GREEN + "Server should now be on the masterlist."));
 					}
 
 					@Override
 					public void OnOpen() {
-				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    	mc.gui.getChat().addMessage(
 				    			new StringTextComponent("Connection established, sending details"));
 					}
 
@@ -176,7 +185,7 @@ public class SyncPublishGui extends ShareToLanScreen {
 					public void OnClose(int errorCode, String reason) {
 						// TODO Auto-generated method stub
 
-				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    	mc.gui.getChat().addMessage(
 				    			new StringTextComponent("Connection closed: " + errorCode + ", " + reason));
 					}
 
@@ -184,15 +193,15 @@ public class SyncPublishGui extends ShareToLanScreen {
 					public void OnError(Exception error) {
 						// TODO Auto-generated method stub
 
-				    	mc.ingameGUI.getChatGUI().printChatMessage(
+				    	mc.gui.getChat().addMessage(
 				    			new StringTextComponent(TextFormatting.RED + "Connection errored: " + error.toString()));
 					}
 					
 				});
 			} catch (KeyManagementException | NoSuchAlgorithmException | InterruptedException e) {
-				SaveSync.logger.error(e);
+				SaveSync.LOGGER.error(e);
 			}
-        	this.minecraft.ingameGUI.getChatGUI().printChatMessage(
+        	this.minecraft.gui.getChat().addMessage(
         			new StringTextComponent("Attempting to publish server details on https://ml-api.uk.ms/masterlist"));
         }
 	}

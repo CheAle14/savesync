@@ -34,10 +34,16 @@ import cheale14.savesync.common.ServerEnvironment;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.NetworkInterface;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.stream.Collectors;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -122,11 +128,59 @@ public class SaveSync
 		return new Gson().fromJson(json, GithubUser.class);
     }
     
+    public static String getHamachiIP() throws IOException, InterruptedException {
+    	if(!isProcessRunning("hamachi-2-ui.exe") ) {
+    		LOGGER.info("Hamachi is not running, no IP");
+    		return null;
+    	}
+    	Enumeration<NetworkInterface> ints = NetworkInterface.getNetworkInterfaces();
+    	while(ints.hasMoreElements()) {
+    		NetworkInterface netInt = ints.nextElement();
+    		if(!netInt.getDisplayName().contains("Hamachi"))
+    			continue;
+    		Enumeration<InetAddress> addrs = netInt.getInetAddresses();
+    		while(addrs.hasMoreElements()) {
+    			InetAddress addr = addrs.nextElement();
+    			LOGGER.info(netInt.getDisplayName() + ": " + addr.toString());
+    			if(addr.getHostAddress().startsWith("25.")) {
+					return addr.getHostAddress();
+    			}
+    		}
+    	}
+    	return null;
+    }
+    
+    public static String getExternalIp() throws IOException, HttpError {
+    	String ip = HttpUtil.GET("http://api.ipify.org/");
+    	return ip.trim();
+    }
+    
+    // http://stackoverflow.com/a/19005828/3764804
+    private static boolean isProcessRunning(String processName) throws IOException, InterruptedException
+    {
+        ProcessBuilder processBuilder = new ProcessBuilder("tasklist.exe");
+        Process process = processBuilder.start();
+        String tasksList = toString(process.getInputStream());
+
+        return tasksList.contains(processName);
+    }
+    
+    // http://stackoverflow.com/a/5445161/3764804
+    private static String toString(InputStream inputStream)
+    {
+    	try(Scanner scanner = new Scanner(inputStream, "UTF-8").useDelimiter("\\A")) {
+            String string = scanner.hasNext() ? scanner.next() : "";
+            return string;
+    	}
+    }
+    
     public static void PurgeCachedUser() {
     	savedUser = null;
     }
     
     static GithubUser savedUser = null;
+
+	public static boolean isUploading = false;
     public static GithubUser GetCurrentUser() throws IOException {
     	if(HasApiKey()) {
     		if(savedUser == null) {

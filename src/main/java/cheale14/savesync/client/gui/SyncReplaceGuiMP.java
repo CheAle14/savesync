@@ -5,40 +5,40 @@ import java.net.URI;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 
-import com.cheale14.savesync.SaveSync;
-import com.cheale14.savesync.client.WSClient;
-import com.cheale14.savesync.common.IWebSocketHandler;
-import com.cheale14.savesync.common.WSPacket;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import cheale14.savesync.SaveSync;
+import cheale14.savesync.common.IWebSocketHandler;
+import cheale14.savesync.common.WSPacket;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiMultiplayer;
-import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.gui.ServerSelectionList;
+import net.minecraft.client.gui.screen.MultiplayerScreen;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ServerSelectionList;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerList;
 
-public class SyncReplaceGuiMP extends GuiMultiplayer implements IWebSocketHandler {
+public class SyncReplaceGuiMP extends MultiplayerScreen implements IWebSocketHandler {
 
-	public SyncReplaceGuiMP(GuiScreen parentScreen) {
+	public SyncReplaceGuiMP(Screen parentScreen) {
 		super(parentScreen);
 		// TODO Auto-generated constructor stub
 		
-		URI uri = URI.create(SaveSync.WS_URI(true));
+		URI uri = URI.create(SaveSync.getWSUri(true));
 		try {
 			ws = new WSClient(uri, this);
 			ws.connect();
 		} catch (KeyManagementException | NoSuchAlgorithmException e) {
-			SaveSync.logger.error(e);
+			SaveSync.LOGGER.error(e);
 		}
 	}
 	
 	
 	@Override
-	public void onGuiClosed() {
-		super.onGuiClosed();
+	public void onClose() {
+		super.onClose();
 		ws.close(1000, "User exit");
 	}
 	
@@ -55,38 +55,37 @@ public class SyncReplaceGuiMP extends GuiMultiplayer implements IWebSocketHandle
 		if(packet.Id().equals("SendServers")) {
 			JsonArray array = (JsonArray)packet.Content();
 
-			ServerList servers = this.getServerList();
+			ServerList servers = this.getServers();
 			
-			for(Integer index = 0; index < servers.countServers(); index++) {
-				ServerData server = servers.getServerData(index);
-				if(server.serverName.startsWith("[MLAPI]")) {
-					servers.removeServerData(index);
+			for(int index = 0; index < servers.size(); index++) {
+				ServerData server = servers.get(index);
+				if(server.name.startsWith("[MLAPI]")) {
+					servers.remove(server);
 					index--;
 				}
 			}
 			
 			
 			for(JsonElement obj : array) {
-				SaveSync.logger.info("Server: " + obj.toString());
-				servers.addServerData(getServerData(obj.getAsJsonObject()));
-				servers.saveServerList();
+				SaveSync.LOGGER.info("Server: " + obj.toString());
+				servers.add(getServerData(obj.getAsJsonObject()));
+				servers.save();
 			}
 			
 			Field f;
 			try {
 				ServerSelectionList selector = null;
-				Class clazz = GuiMultiplayer.class;
+				Class clazz = MultiplayerScreen.class;
 				for(Field field : clazz.getDeclaredFields()) {
 					if(field.getType().getName().equals(ServerSelectionList.class.getName())) {
 						field.setAccessible(true);
 						selector = (ServerSelectionList)field.get(this);
 						break;
 					}
-					SaveSync.logger.debug("GuiMP: " + field.getType().getName() + " " + field.getName());
+					SaveSync.LOGGER.debug("MpScreen: " + field.getType().getName() + " " + field.getName());
 				}
 				if(selector == null) {
-					SaveSync.logger.warn("Unable to find serverSelectionList.");
-					
+					SaveSync.LOGGER.warn("Unable to find serverSelectionList.");
 				} else {
 					selector.updateOnlineServers(servers);
 				}
@@ -94,7 +93,7 @@ public class SyncReplaceGuiMP extends GuiMultiplayer implements IWebSocketHandle
 				
 			} catch (SecurityException | IllegalArgumentException | IllegalAccessException e) {
 				e.printStackTrace();
-				SaveSync.logger.error(e);
+				SaveSync.LOGGER.error(e);
 			}
 			
 			
