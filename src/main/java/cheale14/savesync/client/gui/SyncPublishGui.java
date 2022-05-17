@@ -64,8 +64,8 @@ public class SyncPublishGui extends ShareToLanScreen {
 		txtServerName.setMaxLength(32);
 		txtIpAddress = new TextFieldWidget(font, this.width / 2 - 155, 150, 150, 20, new StringTextComponent("127.0.0.1"));
 		txtGameKind = new TextFieldWidget(font, this.width / 2 - 155, 175, 150, 20, new StringTextComponent("modded/omnifactory"));
-		txtGameKind.setValue("modded/x");
-		txtGameKind.active = true;
+		txtGameKind.setValue(SaveSync.CONFIG.GameMode.get());
+		txtGameKind.active = false;
 		
 		this.addWidget(txtServerName);
 		this.addWidget(txtIpAddress);
@@ -163,13 +163,13 @@ public class SyncPublishGui extends ShareToLanScreen {
 					@Override
 					public void OnPacket(WSPacket packet) {
 				    	mc.ingameGUI.getChatGUI().printChatMessage(
-				    			new TextComponentString(TextFormatting.GREEN + "Server should now be on the masterlist."));
+				    			new StringTextComponent(TextFormatting.GREEN + "Server should now be on the masterlist."));
 					}
 
 					@Override
 					public void OnOpen() {
 				    	mc.ingameGUI.getChatGUI().printChatMessage(
-				    			new TextComponentString("Connection established, sending details"));
+				    			new StringTextComponent("Connection established, sending details"));
 					}
 
 					@Override
@@ -177,7 +177,7 @@ public class SyncPublishGui extends ShareToLanScreen {
 						// TODO Auto-generated method stub
 
 				    	mc.ingameGUI.getChatGUI().printChatMessage(
-				    			new TextComponentString("Connection closed: " + errorCode + ", " + reason));
+				    			new StringTextComponent("Connection closed: " + errorCode + ", " + reason));
 					}
 
 					@Override
@@ -185,7 +185,7 @@ public class SyncPublishGui extends ShareToLanScreen {
 						// TODO Auto-generated method stub
 
 				    	mc.ingameGUI.getChatGUI().printChatMessage(
-				    			new TextComponentString(TextFormatting.RED + "Connection errored: " + error.toString()));
+				    			new StringTextComponent(TextFormatting.RED + "Connection errored: " + error.toString()));
 					}
 					
 				});
@@ -193,7 +193,7 @@ public class SyncPublishGui extends ShareToLanScreen {
 				SaveSync.logger.error(e);
 			}
         	this.minecraft.ingameGUI.getChatGUI().printChatMessage(
-        			new TextComponentString("Attempting to publish server details on https://ml-api.uk.ms/masterlist"));
+        			new StringTextComponent("Attempting to publish server details on https://ml-api.uk.ms/masterlist"));
         }
 	}
 }

@@ -49,6 +49,7 @@ public class SaveSync
 
 	public static final String MODID = "savesync";
 	public static final String NAME = "SaveSync";
+	public static final boolean DEBUG = false;
 
     public SaveSync() {
         // Register the setup method for modloading
@@ -137,6 +138,24 @@ public class SaveSync
     	}
     }
     
+    public static String getWSUri(boolean client) {
+    	String url;
+    	if(DEBUG) {
+        	url = "ws://localhost:4650";
+    	} else {
+    		url = "wss://ml-api.uk.ms";
+    	}
+    	url += "/masterlist?";
+    	if(client) {
+    		url += "client=true&";
+    	}
+    	url += "game=minecraft&";
+    	
+    	url += "mode=" + SaveSync.CONFIG.GameMode.get();
+    	
+    	return url;
+    }
+    
     public static boolean HasApiKey() {
     	String g = SaveSync.CONFIG.ApiKey.get();
     	return g != null && g != "none";
@@ -150,6 +169,9 @@ public class SaveSync
     	private static final Boolean defaultCloseUIOnSuccess = true;
     	public final ConfigValue<Boolean> CloseUIOnSuccess;
     	
+    	private static final String defaultGameMode = "modded";
+    	public final ConfigValue<String> GameMode;
+    	
     	public Config(ForgeConfigSpec.Builder builder) {
     		builder.push("SaveSync");
     		
@@ -158,6 +180,9 @@ public class SaveSync
     		
     		this.CloseUIOnSuccess = builder.comment("Close Progress UI On Success")
     				.define("closeOnSuccess", defaultCloseUIOnSuccess);
+    		
+    		this.GameMode = builder.comment("MasterList game mode")
+    				.define("gameMode", defaultGameMode);
     		
     		builder.pop();
     	}
