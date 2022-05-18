@@ -40,6 +40,12 @@ public class SyncSave {
 	private String _branch;
 	private File _rootDir;
 	
+	public SyncSave(String repository, String branch, File rootDir) {
+		_repository = repository;
+		_branch = branch;
+		_rootDir = rootDir;
+	}
+	
 	public String getRepository() {
 		return _repository;
 	}
@@ -78,7 +84,6 @@ public class SyncSave {
     			.setProgressMonitor(monitor)
     			.call();
     		logger.info("Successfully cloned " + _branch + " into " + _rootDir.getAbsolutePath());
-    		git.close();
     		SaveSync.FixNBT(_rootDir);
     	}
     	WriteTo(_rootDir);
@@ -204,10 +209,9 @@ public class SyncSave {
 		logger.info("Successfully pushed?");
 	}
 	
-	public SyncSave(String repository, String branch, File rootDir) {
-		_repository = repository;
-		_branch = branch;
-		_rootDir = rootDir;
+	public static boolean IsSyncedDirectory(File directory) {
+		if(!directory.isDirectory()) return false;
+		return new File(directory, SYNCFILE_NAME).exists();
 	}
 	
 	public static SyncSave Load(File syncFile) throws FileNotFoundException {

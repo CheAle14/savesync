@@ -21,13 +21,15 @@ import java.util.List;
 public class SyncTextList extends ExtendedList<SyncTextList.TextEntry> 
 {
 	public SyncTextList(SyncProgressGui gui, int listWidth, int top, int bottom)  {
-        super(gui.mc, listWidth, gui.height, top, bottom, gui.getFont().lineHeight * 2 + 8);
+        super(gui.mc, listWidth, gui.height, top, bottom, gui.getFont().lineHeight + 8);
 		parent = gui;
 	}
 	private SyncProgressGui parent;
 	
 	public void add(String text) {
-		this.addEntry(new TextEntry(text, parent));
+		TextEntry e = new TextEntry(text, parent);
+		this.addEntry(e);
+		this.centerScrollOn(e);
 	}
 	
 

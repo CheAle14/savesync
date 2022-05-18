@@ -2,19 +2,24 @@ package cheale14.savesync.client.gui;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 import cheale14.savesync.SaveSync;
 import cheale14.savesync.client.gui.SyncProgressGui.SyncType;
+import cheale14.savesync.common.SyncSave;
 import net.minecraft.client.gui.screen.DirtMessageScreen;
 import net.minecraft.client.gui.screen.IngameMenuScreen;
 import net.minecraft.client.gui.screen.MainMenuScreen;
 import net.minecraft.client.gui.screen.MultiplayerScreen;
 import net.minecraft.client.gui.widget.Widget;
 import net.minecraft.client.gui.widget.button.Button;
+import net.minecraft.command.impl.PublishCommand;
 import net.minecraft.realms.RealmsBridgeScreen;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.server.ServerWorld;
+import net.minecraft.world.storage.DimensionSavedDataManager;
 
 public class SyncReplaceIngameMenu extends IngameMenuScreen {
 
@@ -35,7 +40,17 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 		this.buttons.remove(button);
 		this.children.remove(button);
 	}
-
+	
+	File getWorldFolder() {
+		try {
+			return SaveSync.getWorldFolder(this.minecraft.getSingleplayerServer().overworld());
+		} catch (NoSuchFieldException | IllegalAccessException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
 	@Override
 	public void init() {
 		super.init();
@@ -52,33 +67,33 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 					shareLan = btn;
 				}
 			}
-			if(close != null) {
+			File w = this.getWorldFolder();
+			if(close != null && SyncSave.IsSyncedDirectory(w)) {
 				this.removeButton(close);
 				this.addButton(new SyncReplaceButton(close, new StringTextComponent("Close & Sync"), (x) -> {
-					 boolean flag = this.minecraft.isLocalServer();
-			         boolean flag1 = this.minecraft.isConnectedToRealms();
-			         x.active = false;
-			         this.minecraft.level.disconnect();
-			         if (flag) {
-			            this.minecraft.clearLevel(new DirtMessageScreen(new TranslationTextComponent("menu.savingLevel")));
-			         } else {
-			            this.minecraft.clearLevel();
-			         }
-			         File oldSave = this.minecraft.getSingleplayerServer().getServerDirectory();
-			         SaveSync.LOGGER.info("Replace: " + oldSave.getPath());
-			         SyncType type = oldSave == null ? SyncType.UPLOAD_ALL : SyncType.UPLOAD_ONE;
-	
-			         if (flag) {
-			            this.minecraft.setScreen(new SyncProgressGui(new MainMenuScreen(), type, oldSave));
-			         } else if (flag1) {
-			            RealmsBridgeScreen realmsbridgescreen = new RealmsBridgeScreen();
-			            realmsbridgescreen.switchToRealms(new MainMenuScreen());
-			         } else {
-			        	 SyncProgressGui sync = new SyncProgressGui(new MultiplayerScreen(new MainMenuScreen()), type, oldSave);
-			            this.minecraft.setScreen(sync);
-			         }
-			         
-			        return true;
+					File oldSave = this.getWorldFolder();
+					boolean flag = this.minecraft.isLocalServer();
+					boolean flag1 = this.minecraft.isConnectedToRealms();
+					x.active = false;
+					this.minecraft.level.disconnect();
+					if (flag) {
+					this.minecraft.clearLevel(new DirtMessageScreen(new TranslationTextComponent("menu.savingLevel")));
+					} else {
+					this.minecraft.clearLevel();
+					}
+					SyncType type = oldSave == null ? SyncType.UPLOAD_ALL : SyncType.UPLOAD_ONE;
+
+					if (flag) {
+					this.minecraft.setScreen(new SyncProgressGui(new MainMenuScreen(), type, oldSave));
+					} else if (flag1) {
+					RealmsBridgeScreen realmsbridgescreen = new RealmsBridgeScreen();
+					realmsbridgescreen.switchToRealms(new MainMenuScreen());
+					} else {
+					 SyncProgressGui sync = new SyncProgressGui(new MultiplayerScreen(new MainMenuScreen()), type, oldSave);
+					this.minecraft.setScreen(sync);
+					}
+
+					return true;
 				}));
 			}
 			if(shareLan != null) {

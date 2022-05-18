@@ -2,9 +2,15 @@ package cheale14.savesync;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.Minecraft;
+import net.minecraft.command.CommandSource;
+import net.minecraft.command.Commands.EnvironmentType;
+import net.minecraft.world.server.ServerWorld;
+import net.minecraft.world.storage.DimensionSavedDataManager;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.common.ForgeConfigSpec.ConfigValue;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.DistExecutor;
@@ -28,17 +34,21 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.mojang.brigadier.CommandDispatcher;
 
 import cheale14.savesync.client.ClientEnvironment;
 import cheale14.savesync.client.GithubUser;
 import cheale14.savesync.common.IWebSocketHandler;
 import cheale14.savesync.common.ServerEnvironment;
+import cheale14.savesync.common.SyncSave;
 import cheale14.savesync.common.WSClient;
 import cheale14.savesync.common.WSPacket;
+import cheale14.savesync.common.commands.SyncCommand;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.NetworkInterface;
@@ -82,6 +92,7 @@ public class SaveSync
     
     public static Environment PROXY;
     
+    
 	public static void FixNBT(File worldFolder) throws IOException {
     	File nbtFile = new File(worldFolder, "level.dat");
     	if(!nbtFile.exists()) {
@@ -106,6 +117,8 @@ public class SaveSync
         // some preinit code
     	
     }
+    
+    
 
     private void doClientStuff(final FMLClientSetupEvent event) {
         // do something that can only be done on the client
@@ -217,6 +230,19 @@ public class SaveSync
     	return url;
     }
     
+    static Field _field;
+	public static File getWorldFolder(ServerWorld world) throws NoSuchFieldException, IllegalAccessException {
+		DimensionSavedDataManager savedData = world.getChunkSource().getDataStorage();
+		if(_field == null) {
+			for(Field f : DimensionSavedDataManager.class.getDeclaredFields()) {
+				SaveSync.LOGGER.info("DATA: " + f.getName() + ": " + f.getType().getName());
+			}
+			_field = DimensionSavedDataManager.class.getDeclaredField("dataFolder");
+			_field.setAccessible(true);
+		}
+		return ((File) _field.get(savedData)).getParentFile();
+	}
+    
 	static String wsId = null;
 	static WSClient websocket = null;
     public static void PublishServer(JsonObject serverData, IWebSocketHandler handler) throws KeyManagementException, NoSuchAlgorithmException, InterruptedException {
@@ -292,6 +318,9 @@ public class SaveSync
     	private static final String defaultGameMode = "modded";
     	public final ConfigValue<String> GameMode;
     	
+    	private static final String defaultRepository = "CheAle14/testsync";
+    	public final ConfigValue<String> DefaultRepository;
+    	
     	public Config(ForgeConfigSpec.Builder builder) {
     		builder.push("SaveSync");
     		
@@ -303,6 +332,9 @@ public class SaveSync
     		
     		this.GameMode = builder.comment("MasterList game mode")
     				.define("gameMode", defaultGameMode);
+    		
+    		this.DefaultRepository = builder.comment("Default Repository to download, or none")
+    				.define("defaultRepository", defaultRepository);
     		
     		builder.pop();
     	}

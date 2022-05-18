@@ -4,17 +4,22 @@ import java.awt.Color;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.mojang.blaze3d.matrix.MatrixStack;
 
 import cheale14.savesync.SaveSync;
+import cheale14.savesync.client.ClientEnvironment;
 import cheale14.savesync.common.SyncSave;
 import cheale14.savesync.common.SyncThread;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.screen.MainMenuScreen;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.WorldSelectionScreen;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.util.text.StringTextComponent;
 
@@ -25,7 +30,7 @@ public class SyncProgressGui extends Screen {
 		mc = parent.getMinecraft();
 		Type = type;
 		parentScreen = parent;
-		world = file;
+		dir = file;
 		closeOnNormalEnd = closeOnEnd;
 	}
 	public SyncProgressGui(Screen parent, SyncType type) {
@@ -44,9 +49,11 @@ public class SyncProgressGui extends Screen {
 	Button cancelButton;
 	Button doneButton;
 	SyncTextList log;
-	SyncThread thread;
+	File dir;
+	
+	List<SyncThread> threads;
 	boolean closeOnNormalEnd;
-	File world;
+
 	
 	@Override
 	public void init() {
@@ -57,7 +64,7 @@ public class SyncProgressGui extends Screen {
 				button.active = false;
 				button.setMessage(new StringTextComponent("Stopping"));
 				stopCount = 0;
-				thread.Cancel();
+				stop();
 			}
 		});
 		this.addButton(cancelButton);
@@ -66,61 +73,87 @@ public class SyncProgressGui extends Screen {
 			@Override
 			public void onPress(Button btn) {
 				SaveSync.LOGGER.info("Closing!");
-				thread = null;
-				Minecraft.getInstance().setScreen(parentScreen);
+				onClose();
 			}
 		});
 
 
 		doneButton.visible = false;
 		this.addButton(doneButton);
-		log = new SyncTextList(this, this.width - 30, 5, 100);
-		if(thread == null) {
-			Start();
+		log = new SyncTextList(this, this.width - 30, 5, this.height - 5);
+		this.addWidget(log);
+		if(threads == null) {
+			threads = new ArrayList<SyncThread>();
+			try {
+				Start();
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				this.Append("Failed to start: " + e.getMessage());
+			}
 		}
 	}
 	
-	
+	void stop() {
+		for(SyncThread t : threads)
+			t.Cancel();
+	}
+
+	boolean isAlive() {
+		for(SyncThread t : threads) {
+			if(!t.isAlive()) return false;
+		}
+		return true;
+	}
+	boolean hasError() {
+		for(SyncThread t : threads)
+			if(t.hasError()) return true;
+		return false;
+	}
 
 	@Override
 	public void render(MatrixStack matrix, int mouseX, int mouseY, float partialTicks) {
-		this.renderDirtBackground(0);
+		this.renderBackground(matrix);
 		this.log.render(matrix, mouseX, mouseY, partialTicks);
 		
 		if(stopCount >= 0) {
 			stopCount ++;
 			cancelButton.setMessage(new StringTextComponent("Stopping" + StringUtils.repeat('.', stopCount % 20)));
-			if(!thread.isAlive()) {
-				thread = null;
-				SaveSync.LOGGER.info("Thread ended, closing UI");
+
+			if(!isAlive()) {
+				SaveSync.LOGGER.info("Threads ended, closing UI");
 				mc.setScreen(parentScreen);
+				onClose();
 				return;
 			}
-		} else if(!thread.isAlive() && !thread.hasError()) {
+		} else if(!isAlive() && !hasError()) {
 			SaveSync.LOGGER.info("Closing UI as success without issues.");
-			thread = null;
-			mc.setScreen(parentScreen);
+			onClose();
 			return;
 		}
-		
-		super.render(matrix, mouseX, mouseY, partialTicks);
 	}
 
 	int stopCount = -1;
 	
 	public boolean closed = false;
 	public boolean ended() {
-		if(thread == null)
+		if(threads == null)
 			return true;
-		return !thread.isAlive();
+		return !isAlive();
 	}
 	
 	@Override
 	public void onClose() {
+		SaveSync.LOGGER.info("SyncProgress onClose");
 		closed = true;
-		if(thread != null) {
-			thread.Cancel();
+		if(threads != null) {
+			stop();
 		}
+		threads = null;
+		ClientEnvironment proxy = (ClientEnvironment)SaveSync.PROXY;
+		proxy.inProgress = null;
+		proxy.didSync = true;
+		mc.setScreen(new WorldSelectionScreen(new MainMenuScreen()));
 	}
 	
 	public void Append(String message) {
@@ -148,12 +181,34 @@ public class SyncProgressGui extends Screen {
 		}
 	}
 	
-	public void Start() {
+	public void Start() throws FileNotFoundException {
 		if(log != null) {
 			log.Clear();
 		}
-		thread = new SyncThread(this, world);
-		thread.start();
+		if(this.Type == SyncType.DOWNLOAD_ALL || this.Type == SyncType.UPLOAD_ALL) {
+			String defaultRepo = SaveSync.CONFIG.DefaultRepository.get();
+			boolean any = false;
+			for(SyncSave save : SyncSave.LoadAll(dir)) {
+				any = true;
+				SyncThread t = new SyncThread(this, save);
+				threads.add(t);
+				t.start();
+			}
+			if(!any) {
+				if(this.Type == SyncType.DOWNLOAD_ALL) {
+					SyncSave s = SaveSync.PROXY.GetDefaultSave();
+					if(s != null) {
+						SyncThread t = new SyncThread(this, s);
+						threads.add(t);
+						t.start();
+					}
+				}
+			}
+		} else {
+			SyncThread t= new SyncThread(this, SyncSave.Load(dir));
+			threads.add(t);
+			t.start();
+		}
 	}
 	
 	public FontRenderer getFont() { return font; }

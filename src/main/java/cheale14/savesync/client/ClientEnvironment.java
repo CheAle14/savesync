@@ -1,5 +1,7 @@
 package cheale14.savesync.client;
 
+import java.io.File;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -8,6 +10,13 @@ import cheale14.savesync.SaveSync;
 import cheale14.savesync.client.gui.SyncLoginGui;
 import cheale14.savesync.client.gui.SyncProgressGui;
 import cheale14.savesync.client.gui.SyncProgressGui.SyncType;
+import cheale14.savesync.client.gui.SyncReplaceGuiMP;
+import cheale14.savesync.client.gui.SyncReplaceIngameMenu;
+import cheale14.savesync.common.SyncSave;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screen.CreateWorldScreen;
+import net.minecraft.client.gui.screen.IngameMenuScreen;
+import net.minecraft.client.gui.screen.MultiplayerScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.WorldSelectionScreen;
 import net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent;
@@ -24,10 +33,27 @@ public class ClientEnvironment implements Environment {
 		
 		if(gui instanceof WorldSelectionScreen) {
 			showSpSceen(gui);
+		} else if (gui instanceof CreateWorldScreen) {
+			if(inProgress != null) {
+				didSync = true;
+				gui.getMinecraft().setScreen(inProgress);
+			}
+		} else if(gui instanceof IngameMenuScreen) {
+			if(gui instanceof SyncReplaceIngameMenu) return;
+			
+			SyncReplaceIngameMenu replace = new SyncReplaceIngameMenu(true);
+			gui.getMinecraft().setScreen(replace);
+		} else if(gui instanceof MultiplayerScreen) {
+			
+			if(gui instanceof SyncReplaceGuiMP) return;
+			
+			SyncReplaceGuiMP mp = new SyncReplaceGuiMP(gui);
+			gui.getMinecraft().setScreen(mp);
 		}
 	}
 
-	boolean didSync = false;
+	public SyncProgressGui inProgress;
+	public boolean didSync = false;
 	void showSpSceen(Screen oldGui) {
 		try {
 			if(SaveSync.GetCurrentUser() == null) {
@@ -52,8 +78,21 @@ public class ClientEnvironment implements Environment {
 			// We have not synced, so need to do so.
 			didSync = true;
 			logger.info("Not synced, opening progress GUI to sync..");
-			SyncProgressGui syncGui = new SyncProgressGui(oldGui, SyncType.DOWNLOAD_ALL);
-			oldGui.getMinecraft().setScreen(syncGui);
+			File saveFolder = new File(oldGui.getMinecraft().gameDirectory, "saves");
+			logger.info("Save direcotry: " + saveFolder);
+			inProgress = new SyncProgressGui(oldGui, SyncType.DOWNLOAD_ALL, saveFolder);
+			oldGui.getMinecraft().setScreen(inProgress);
 		}
 	}
+	
+
+	@Override
+    public SyncSave GetDefaultSave() {
+    	String repo = SaveSync.CONFIG.DefaultRepository.get();
+    	if(repo == null || repo == "none") return null;
+    	File saveDir = new File(Minecraft.getInstance().gameDirectory, "saves");
+    	File worldDir = new File(saveDir, "default");
+    	return new SyncSave(repo, "main", worldDir);
+    }
+	
 }
