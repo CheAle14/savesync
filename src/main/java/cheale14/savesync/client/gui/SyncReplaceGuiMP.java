@@ -12,6 +12,7 @@ import com.google.gson.JsonObject;
 
 import cheale14.savesync.SaveSync;
 import cheale14.savesync.common.IWebSocketHandler;
+import cheale14.savesync.common.WSClient;
 import cheale14.savesync.common.WSPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.MultiplayerScreen;
@@ -22,6 +23,7 @@ import net.minecraft.client.multiplayer.ServerList;
 
 public class SyncReplaceGuiMP extends MultiplayerScreen implements IWebSocketHandler {
 
+	WSClient ws;
 	public SyncReplaceGuiMP(Screen parentScreen) {
 		super(parentScreen);
 		// TODO Auto-generated constructor stub
@@ -48,7 +50,6 @@ public class SyncReplaceGuiMP extends MultiplayerScreen implements IWebSocketHan
 		return new ServerData(name, ip, false);
 	}
 	
-	WSClient ws;
 
 	@Override
 	public void OnPacket(WSPacket packet) {

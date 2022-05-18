@@ -16,14 +16,14 @@ public class SyncThread extends Thread {
 	
 	private SyncProgressGui Gui;
 	private SyncType Type;
-	private SyncSave save;
+	private File folder;
 	private boolean didError = false;
 	
 	private boolean doCancel = false;
-	public SyncThread(SyncProgressGui gui, SyncSave _save) {
+	public SyncThread(SyncProgressGui gui, File _folder) {
 		Gui = gui;
 		Type = gui.Type;
-		save = _save;
+		folder = _folder;
 	}
 	
 	public boolean hasError() {
@@ -43,14 +43,19 @@ public class SyncThread extends Thread {
 		try {
 			if(Type.Pull) {
 				if(Type.All) {
-					save.Download(new Monitor());
+					for(SyncSave save : SyncSave.LoadAll(folder)) {
+						save.Download(new Monitor());	
+					}
 				} else {
-					save.Download(new Monitor());
+					SyncSave.Load(folder).Download(new Monitor());
 				}
 			} else {
 				if(Type.All) {
-					save.Upload(new Monitor());
+					for(SyncSave save : SyncSave.LoadAll(folder)) {
+						save.Download(new Monitor());	
+					}
 				} else {
+					SyncSave.Load(folder).Download(new Monitor());
 				}
 			}
 		} catch(Exception e) {
@@ -71,7 +76,7 @@ public class SyncThread extends Thread {
 		return (Type.Pull ? "Pull" : "Push")
 				+ " of " 
 				+ (Type.All ? " all " : " only ") 
-				+ (save.getRootDirectory() == null ? "" : save.getRootDirectory().getAbsolutePath());
+				+ (folder.getAbsolutePath());
 	}
 	
 	private class Monitor implements ProgressMonitor {

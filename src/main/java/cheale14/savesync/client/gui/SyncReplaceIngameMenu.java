@@ -69,29 +69,15 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 			         SyncType type = oldSave == null ? SyncType.UPLOAD_ALL : SyncType.UPLOAD_ONE;
 	
 			         if (flag) {
-			            this.minecraft.setScreen(new SyncProgressGui(new MainMenuScreen(), type, oldSave);
+			            this.minecraft.setScreen(new SyncProgressGui(new MainMenuScreen(), type, oldSave));
 			         } else if (flag1) {
 			            RealmsBridgeScreen realmsbridgescreen = new RealmsBridgeScreen();
 			            realmsbridgescreen.switchToRealms(new MainMenuScreen());
 			         } else {
-			            this.minecraft.setScreen(new MultiplayerScreen(new MainMenuScreen()));
+			        	 SyncProgressGui sync = new SyncProgressGui(new MultiplayerScreen(new MainMenuScreen()), type, oldSave);
+			            this.minecraft.setScreen(sync);
 			         }
-			
-			        if (flag)
-			        {
-			        	SyncProgressGui sync = new SyncProgressGui(new GuiMainMenu(), type, oldSave);
-			            this.mc.displayGuiScreen(sync);
-			        }
-			        else if (flag1)
-			        {
-			            RealmsBridge realmsbridge = new RealmsBridge();
-			            realmsbridge.switchToRealms(new GuiMainMenu());
-			        }
-			        else
-			        {
-			        	SyncProgressGui sync = new SyncProgressGui(new GuiMultiplayer(new GuiMainMenu()), type, oldSave);
-			            this.mc.displayGuiScreen(sync);
-			        }
+			         
 			        return true;
 				}));
 			}
@@ -99,23 +85,10 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 				this.removeButton(shareLan);
 				
 				this.addButton(new SyncReplaceButton(shareLan, new StringTextComponent("Publish to MLAPI"), (x) -> {
-					return false;
+					this.minecraft.setScreen(new SyncPublishGui(this));
+					return true;
 				}));
 			}
 		}
 	}
-
-	
-	@Override
-    protected void actionPerformed(Button button) throws IOException {
-		if(button.id == 1) {			
-	    	
-		} else if (button.id == 7) {
-			// open to lan
-			SyncPublishGui publish = new SyncPublishGui(this);
-			this.mc.displayGuiScreen(publish);
-		} else {
-			super.actionPerformed(button);
-		}
-    }
 }

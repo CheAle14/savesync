@@ -152,14 +152,8 @@ public class SyncProgressGui extends Screen {
 		if(log != null) {
 			log.Clear();
 		}
-		try {
-			thread = new SyncThread(this, SyncSave.Load(world));
-			thread.start();
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			SaveSync.LOGGER.error("Failed to start progress GUI");
-		}
+		thread = new SyncThread(this, world);
+		thread.start();
 	}
 	
 	public FontRenderer getFont() { return font; }

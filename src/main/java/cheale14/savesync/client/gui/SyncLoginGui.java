@@ -19,12 +19,14 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.gson.Gson;
 import com.mojang.blaze3d.matrix.MatrixStack;
 
+import cheale14.savesync.BrowserUtil;
 import cheale14.savesync.HttpError;
 import cheale14.savesync.HttpUtil;
 import cheale14.savesync.SaveSync;
 import cheale14.savesync.client.GithubOauthCallback;
 import cheale14.savesync.client.GithubUser;
 import cheale14.savesync.client.OAuth2Listener;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.AbstractGui;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.util.text.StringTextComponent;
@@ -142,10 +144,9 @@ public class SyncLoginGui extends Screen {
 				displayMessage = "Listening for redirect...";
 				server = new OAuth2Listener(this, 0); // 0 as port means OS will give us an unused one
 				server.Start();
+			
 				
-				Desktop d = Desktop.getDesktop();
-				d.browse(URI.create(getRedirectUrl()));
-				
+				BrowserUtil.Open(getRedirectUrl());
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

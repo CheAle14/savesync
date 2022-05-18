@@ -27,10 +27,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import cheale14.savesync.client.ClientEnvironment;
 import cheale14.savesync.client.GithubUser;
+import cheale14.savesync.common.IWebSocketHandler;
 import cheale14.savesync.common.ServerEnvironment;
+import cheale14.savesync.common.WSClient;
+import cheale14.savesync.common.WSPacket;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,8 +42,11 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.NetworkInterface;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -209,6 +216,65 @@ public class SaveSync
     	
     	return url;
     }
+    
+	static String wsId = null;
+	static WSClient websocket = null;
+    public static void PublishServer(JsonObject serverData, IWebSocketHandler handler) throws KeyManagementException, NoSuchAlgorithmException, InterruptedException {
+		if(wsId != null) {
+			serverData.addProperty("id", wsId);
+		}
+		LOGGER.info("UpsertServer: " + serverData.toString());
+		URI uri = URI.create(SaveSync.getWSUri(false));
+		
+
+		WSPacket packet = new WSPacket();
+		packet.Id("UpsertServer");
+		packet.Content(serverData);
+		Gson gson = new Gson();
+		String sending = gson.toJson(packet);
+		
+		if(websocket == null) {
+			websocket = new WSClient(uri, new IWebSocketHandler() {
+				@Override
+				public void OnPacket(WSPacket packet) {
+					if(packet.Id().equals("UpsertServer")) {
+						if(packet.Content() instanceof JsonObject) {
+
+							wsId = ((JsonObject)packet.Content()).get("id").getAsString();
+						}
+					}
+					if(handler != null)
+						handler.OnPacket(packet);
+				}
+				@Override
+				public void OnOpen() {
+					websocket.send(sending);
+					
+					if(handler != null)
+						handler.OnOpen();
+				}
+				@Override
+				public void OnClose(int errorCode, String reason) {
+					if(handler != null)
+						handler.OnClose(errorCode, reason);
+					
+					
+				}
+				@Override
+				public void OnError(Exception error) {
+					if(handler != null)
+						handler.OnError(error);
+				}
+			});
+			websocket.connect();
+		} else {
+			if(websocket.isClosing() || websocket.isClosed()) {
+				LOGGER.info("[WS] Reconnecting websocket");
+				websocket.reconnectBlocking();
+			}
+			websocket.send(sending);
+		}
+	}
     
     public static boolean HasApiKey() {
     	String g = SaveSync.CONFIG.ApiKey.get();

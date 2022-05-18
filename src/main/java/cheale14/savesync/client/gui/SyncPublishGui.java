@@ -167,7 +167,7 @@ public class SyncPublishGui extends ShareToLanScreen {
         	obj.addProperty("port", port);
 
         	try {
-				SaveSync.PROXY.PublishServer(obj, new IWebSocketHandler() {
+				SaveSync.PublishServer(obj, new IWebSocketHandler() {
 
 					@Override
 					public void OnPacket(WSPacket packet) {
