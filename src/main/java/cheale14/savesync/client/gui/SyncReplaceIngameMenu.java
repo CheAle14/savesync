@@ -70,31 +70,7 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 			File w = this.getWorldFolder();
 			if(close != null && SyncSave.IsSyncedDirectory(w)) {
 				this.removeButton(close);
-				this.addButton(new SyncReplaceButton(close, new StringTextComponent("Close & Sync"), (x) -> {
-					File oldSave = this.getWorldFolder();
-					boolean flag = this.minecraft.isLocalServer();
-					boolean flag1 = this.minecraft.isConnectedToRealms();
-					x.active = false;
-					this.minecraft.level.disconnect();
-					if (flag) {
-					this.minecraft.clearLevel(new DirtMessageScreen(new TranslationTextComponent("menu.savingLevel")));
-					} else {
-					this.minecraft.clearLevel();
-					}
-					SyncType type = oldSave == null ? SyncType.UPLOAD_ALL : SyncType.UPLOAD_ONE;
-
-					if (flag) {
-					this.minecraft.setScreen(new SyncProgressGui(new MainMenuScreen(), type, oldSave));
-					} else if (flag1) {
-					RealmsBridgeScreen realmsbridgescreen = new RealmsBridgeScreen();
-					realmsbridgescreen.switchToRealms(new MainMenuScreen());
-					} else {
-					 SyncProgressGui sync = new SyncProgressGui(new MultiplayerScreen(new MainMenuScreen()), type, oldSave);
-					this.minecraft.setScreen(sync);
-					}
-
-					return true;
-				}));
+				this.addButton(new SyncReplaceButton(close, new StringTextComponent("Close & Sync")));
 			}
 			if(shareLan != null) {
 				this.removeButton(shareLan);

@@ -27,7 +27,6 @@ public class SyncProgressGui extends Screen {
 	
 	public SyncProgressGui(Screen parent, SyncType type, File file, boolean closeOnEnd) {
 		super(new StringTextComponent("Sync Progress"));
-		mc = parent.getMinecraft();
 		Type = type;
 		parentScreen = parent;
 		dir = file;
@@ -44,7 +43,6 @@ public class SyncProgressGui extends Screen {
 	}
 	
 	public SyncType Type;
-	Minecraft mc;
 	Screen parentScreen;
 	Button cancelButton;
 	Button doneButton;
@@ -81,6 +79,7 @@ public class SyncProgressGui extends Screen {
 		doneButton.visible = false;
 		this.addButton(doneButton);
 		log = new SyncTextList(this, this.width - 30, 5, this.height - 5);
+		log.setRenderBackground(false);
 		this.addWidget(log);
 		if(threads == null) {
 			threads = new ArrayList<SyncThread>();
@@ -114,6 +113,7 @@ public class SyncProgressGui extends Screen {
 	@Override
 	public void render(MatrixStack matrix, int mouseX, int mouseY, float partialTicks) {
 		this.renderBackground(matrix);
+		super.render(matrix, mouseX, mouseY, partialTicks);
 		this.log.render(matrix, mouseX, mouseY, partialTicks);
 		
 		if(stopCount >= 0) {
@@ -122,7 +122,7 @@ public class SyncProgressGui extends Screen {
 
 			if(!isAlive()) {
 				SaveSync.LOGGER.info("Threads ended, closing UI");
-				mc.setScreen(parentScreen);
+				this.minecraft.setScreen(parentScreen);
 				onClose();
 				return;
 			}
@@ -153,10 +153,11 @@ public class SyncProgressGui extends Screen {
 		ClientEnvironment proxy = (ClientEnvironment)SaveSync.PROXY;
 		proxy.inProgress = null;
 		proxy.didSync = true;
-		mc.setScreen(new WorldSelectionScreen(new MainMenuScreen()));
+		this.minecraft.setScreen(new WorldSelectionScreen(new MainMenuScreen()));
 	}
 	
 	public void Append(String message) {
+		SaveSync.LOGGER.info("[gui] " + message);
 		log.add(message);
 	}
 	

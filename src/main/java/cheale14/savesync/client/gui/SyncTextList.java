@@ -21,7 +21,7 @@ import java.util.List;
 public class SyncTextList extends ExtendedList<SyncTextList.TextEntry> 
 {
 	public SyncTextList(SyncProgressGui gui, int listWidth, int top, int bottom)  {
-        super(gui.mc, listWidth, gui.height, top, bottom, gui.getFont().lineHeight + 8);
+        super(gui.getMinecraft(), listWidth, gui.height, top, bottom, gui.getFont().lineHeight + 8);
 		parent = gui;
 	}
 	private SyncProgressGui parent;

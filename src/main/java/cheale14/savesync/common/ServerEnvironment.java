@@ -2,9 +2,13 @@ package cheale14.savesync.common;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URISyntaxException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.ProgressMonitor;
 
 import com.google.gson.JsonObject;
 
@@ -14,8 +18,6 @@ import net.minecraftforge.fml.server.ServerLifecycleHooks;
 
 public class ServerEnvironment implements Environment {
 
-	private Logger logger = LogManager.getLogger("savesync-cproxy");
-
 	@Override
 	public SyncSave GetDefaultSave() {
 		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
@@ -23,9 +25,17 @@ public class ServerEnvironment implements Environment {
 		try {
 			return SyncSave.Load(new File(file, "world"));
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 			return null;
+		}
+	}
+
+	@Override
+	public void OnServerStopped(MinecraftServer server) throws NoSuchFieldException, IllegalAccessException, GitAPIException, URISyntaxException, IOException {
+		SyncSave s = this.GetDefaultSave();
+		if(s != null) {
+			s.Upload(new Monitor((msg) -> {
+				logger.info("[upload] " + msg);
+			}));
 		}
 	}
 	

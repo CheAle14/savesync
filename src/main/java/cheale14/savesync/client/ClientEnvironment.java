@@ -16,9 +16,11 @@ import cheale14.savesync.common.SyncSave;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.CreateWorldScreen;
 import net.minecraft.client.gui.screen.IngameMenuScreen;
+import net.minecraft.client.gui.screen.MainMenuScreen;
 import net.minecraft.client.gui.screen.MultiplayerScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.WorldSelectionScreen;
+import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
@@ -49,6 +51,13 @@ public class ClientEnvironment implements Environment {
 			
 			SyncReplaceGuiMP mp = new SyncReplaceGuiMP(gui);
 			gui.getMinecraft().setScreen(mp);
+		} else if(gui instanceof MainMenuScreen) {
+			if(toUpload != null) {
+				File temp = toUpload;
+				toUpload = null;
+				logger.info("toUpload not null, doing upload.");
+				gui.getMinecraft().setScreen(new SyncProgressGui(gui, SyncType.UPLOAD_ONE, temp));
+			}
 		}
 	}
 
@@ -94,5 +103,15 @@ public class ClientEnvironment implements Environment {
     	File worldDir = new File(saveDir, "default");
     	return new SyncSave(repo, "main", worldDir);
     }
+
+	File toUpload = null;
+	@Override
+	public void OnServerStopped(MinecraftServer server) throws NoSuchFieldException, IllegalAccessException {
+    	File f = SaveSync.getWorldFolder(server.overworld());
+    	if(SyncSave.IsSyncedDirectory(f)) {
+    		logger.info("Integrated server stopped, directory is being synced - scheudling upload.");
+    		toUpload = f;
+    	}
+	}
 	
 }

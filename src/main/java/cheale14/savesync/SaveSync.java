@@ -23,6 +23,8 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.InterModEnqueueEvent;
 import net.minecraftforge.fml.event.lifecycle.InterModProcessEvent;
 import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
+import net.minecraftforge.fml.event.server.FMLServerStoppedEvent;
+import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.querz.nbt.io.NBTUtil;
 import net.querz.nbt.io.NamedTag;
@@ -131,7 +133,18 @@ public class SaveSync
         // do something when the server starts
         LOGGER.info("HELLO from server starting");
     }
-    
+   
+    @SubscribeEvent
+    public void onServerStopped(FMLServerStoppedEvent event) {
+    	LOGGER.info("Server stopped");
+    	try {
+        	PROXY.OnServerStopped(event.getServer());
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    		LOGGER.error(e);
+    	}
+
+    }
     
     public static GithubUser GetCurrentUser(String accessToken) throws IOException {
 		Map<String, String> headers = new HashMap<>();

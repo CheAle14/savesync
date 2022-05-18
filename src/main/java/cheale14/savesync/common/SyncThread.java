@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.ProgressMonitor;
 
 import cheale14.savesync.SaveSync;
 import cheale14.savesync.client.gui.SyncProgressGui;
@@ -19,7 +18,7 @@ public class SyncThread extends Thread {
 	private SyncSave save;
 	private boolean didError = false;
 	
-	private boolean doCancel = false;
+	boolean doCancel = false;
 	public SyncThread(SyncProgressGui gui, SyncSave _save) {
 		Gui = gui;
 		Type = gui.Type;
@@ -46,9 +45,13 @@ public class SyncThread extends Thread {
 		
 		try {
 			if(Type.Pull) {
-				save.Download(new Monitor());
+				save.Download(new Monitor((msg) -> {
+					log(msg);
+				}));
 			} else {
-				save.Upload(new  Monitor());
+				save.Upload(new  Monitor((msg) -> {
+					log(msg);
+				}));
 			}
 		} catch(Exception e) {
 			log(e.toString());
@@ -69,40 +72,5 @@ public class SyncThread extends Thread {
 				+ " of " 
 				+ (Type.All ? " all " : " only ") 
 				+ (save.getRootDirectory().getAbsolutePath());
-	}
-	
-	private class Monitor implements ProgressMonitor {
-		private int total;
-		private int done;
-		@Override
-		public void start(int totalTasks) {
-			log("Starting " + this.toString() + "; tasks: " + totalTasks);
-		}
-
-		@Override
-		public void beginTask(String title, int totalWork) {
-			total = totalWork;
-			log("Task: " + title + "; work: " + totalWork);
-			done = 0;
-		}
-
-		@Override
-		public void update(int completed) {
-			done += completed;
-			log("  " + done + "/" + total);
-		}
-
-		@Override
-		public void endTask() {
-			// TODO Auto-generated method stub
-			log("  Done.");
-			done = 0;
-			total = 0;
-		}
-
-		@Override
-		public boolean isCancelled() {
-			return doCancel;
-		}
 	}
 }

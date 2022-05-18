@@ -12,11 +12,14 @@ public class SyncReplaceButton extends Button {
 		super(replacing.x, replacing.y, replacing.getWidth(), replacing.getHeight(), p_i232255_5_, new Button.IPressable() {
 			@Override
 			public void onPress(Button p_onPress_1_) {
-				if(!func.test(p_onPress_1_)) {
-					p_onPress_1_.onPress();
+				if(!func.test(replacing)) {
+					replacing.onPress();
 				}
 			}
 		});
+	}
+	public SyncReplaceButton(Button replacing, ITextComponent message) {
+		this(replacing, message, (x) -> false);
 	}
 	
 	
