@@ -4,7 +4,7 @@ import java.util.function.Consumer;
 
 import org.eclipse.jgit.lib.ProgressMonitor;
 
-class Monitor implements ProgressMonitor {
+public class Monitor implements ProgressMonitor {
 	
 	public Monitor(Consumer<String> _log) {
 		log = _log;

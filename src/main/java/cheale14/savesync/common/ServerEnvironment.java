@@ -13,6 +13,7 @@ import org.eclipse.jgit.lib.ProgressMonitor;
 import com.google.gson.JsonObject;
 
 import cheale14.savesync.Environment;
+import cheale14.savesync.SaveSync;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fml.server.ServerLifecycleHooks;
 
@@ -22,10 +23,11 @@ public class ServerEnvironment implements Environment {
 	public SyncSave GetDefaultSave() {
 		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
 		File file = server.getServerDirectory();
+		File world = new File(file, "world");
 		try {
-			return SyncSave.Load(new File(file, "world"));
+			return SyncSave.Load(world);
 		} catch (FileNotFoundException e) {
-			return null;
+			return new SyncSave(SaveSync.CONFIG.DefaultRepository.get(), "main", world);
 		}
 	}
 

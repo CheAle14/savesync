@@ -5,6 +5,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands.EnvironmentType;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.server.ServerWorld;
 import net.minecraft.world.storage.DimensionSavedDataManager;
 import net.minecraftforge.common.ForgeConfigSpec;
@@ -20,8 +21,10 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLDedicatedServerSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.InterModEnqueueEvent;
 import net.minecraftforge.fml.event.lifecycle.InterModProcessEvent;
+import net.minecraftforge.fml.event.server.FMLServerAboutToStartEvent;
 import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
 import net.minecraftforge.fml.event.server.FMLServerStoppedEvent;
 import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
@@ -33,6 +36,7 @@ import net.querz.nbt.tag.CompoundTag;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jgit.api.errors.GitAPIException;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -41,6 +45,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import cheale14.savesync.client.ClientEnvironment;
 import cheale14.savesync.client.GithubUser;
 import cheale14.savesync.common.IWebSocketHandler;
+import cheale14.savesync.common.Monitor;
 import cheale14.savesync.common.ServerEnvironment;
 import cheale14.savesync.common.SyncSave;
 import cheale14.savesync.common.WSClient;
@@ -48,6 +53,7 @@ import cheale14.savesync.common.WSPacket;
 import cheale14.savesync.common.commands.SyncCommand;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -55,6 +61,7 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.NetworkInterface;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.KeyManagementException;
@@ -79,6 +86,8 @@ public class SaveSync
     public SaveSync() {
         // Register the setup method for modloading
         FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
+
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::dedicatedServerSetup);
         // Register the doClientStuff method for modloading
         FMLJavaModLoadingContext.get().getModEventBus().addListener(this::doClientStuff);
         
@@ -117,15 +126,43 @@ public class SaveSync
     private void setup(final FMLCommonSetupEvent event)
     {
         // some preinit code
-    	
+    	LOGGER.info("FMLCommonSetupEvent FIRED");
     }
     
-    
+    private void dedicatedServerSetup(final FMLDedicatedServerSetupEvent event) {
+    	File worldDir = new File("./world");
+    	LOGGER.info("We're on a dedicated server.");
+		if(!HasApiKey()) {
+			LOGGER.error("API Key has not been set. You must set the API Key in the savesync config file.");
+			LOGGER.error("Should be somewhere around: " + worldDir.getParentFile().getAbsolutePath());
+			System.exit(1);
+			return;
+		}
+		
+		SyncSave s;
+		try {
+			s = SyncSave.Load(worldDir);
+		} catch (FileNotFoundException e) {
+			s = new SyncSave(CONFIG.DefaultRepository.get(), "main", worldDir);
+		}
+		
+		try {
+			s.Download(new Monitor((x) -> {
+				LOGGER.info(x);
+			}));
+		} catch (IllegalStateException | GitAPIException | IOException | URISyntaxException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			LOGGER.error("Failed to download synced save.");
+			System.exit(1);
+		}
+    }
 
     private void doClientStuff(final FMLClientSetupEvent event) {
         // do something that can only be done on the client
         LOGGER.info("Got game settings {}", event.getMinecraftSupplier().get().options);
     }
+    
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
     @SubscribeEvent
