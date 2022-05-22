@@ -27,15 +27,6 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 		super(p_i51519_1_);
 	}
 	
-	String getWidgetText(Widget widget) {
-		ITextComponent component = widget.getMessage();
-		if(component instanceof TranslationTextComponent) {
-			TranslationTextComponent translate = (TranslationTextComponent)component;
-			return translate.getKey();
-		}
-		return "";
-	}
-	
 	void removeButton(Button button) {
 		this.buttons.remove(button);
 		this.children.remove(button);
@@ -60,7 +51,7 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 			for(Widget wid : this.buttons) {
 				if(!(wid instanceof Button)) continue;
 				Button btn = (Button)wid;
-				String text = getWidgetText(btn);
+				String text = GuiUtils.getWidgetText(btn);
 				if(text.equals("menu.returnToMenu") && this.minecraft.isLocalServer()) {
 					close = btn;
 				} else if(text.equals("menu.shareToLan")) {

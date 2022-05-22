@@ -1,6 +1,6 @@
 package cheale14.savesync.client.gui;
 
-import java.awt.Color;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -19,13 +19,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ShareToLanScreen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.gui.widget.Widget;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.util.HTTPUtil;
+import net.minecraft.util.text.Color;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.GameType;
 
@@ -65,7 +69,11 @@ public class SyncPublishGui extends ShareToLanScreen {
 
 		txtServerName = new TextFieldWidget(font, this.width / 2 - 155, 125, 300, 20, new StringTextComponent("Name"));
 		txtServerName.setMaxLength(32);
+		txtServerName.setValue(this.minecraft.player.getName().getContents() + "'s server");
 		txtIpAddress = new TextFieldWidget(font, this.width / 2 - 155, 150, 150, 20, new StringTextComponent("127.0.0.1"));
+		
+		if(!setHamachi()) setExternal();
+		
 		txtGameKind = new TextFieldWidget(font, this.width / 2 - 155, 175, 150, 20, new StringTextComponent("modded/omnifactory"));
 		txtGameKind.setValue(SaveSync.CONFIG.GameMode.get());
 		txtGameKind.active = false;
@@ -76,6 +84,32 @@ public class SyncPublishGui extends ShareToLanScreen {
 		
 		
 		super.init();
+		Button startBtn = null;
+		for(Widget wid : this.buttons) {
+			if(!(wid instanceof Button)) continue;
+			Button btn = (Button)wid;
+			String text = GuiUtils.getWidgetText(btn);
+			if(text.equals("lanServer.start")) {
+				startBtn = btn;
+				break;
+			}
+		}
+		if(startBtn == null) {
+			SaveSync.LOGGER.warn("PublishGui start button was null");
+		} else {
+			SaveSync.LOGGER.info("Replaced regular start button");
+			this.buttons.remove(startBtn);
+			this.children.remove(startBtn);
+			this.addButton(new SyncReplaceButton(startBtn, new StringTextComponent("Publish LAN and MLAPI"), (x) -> {
+				SaveSync.LOGGER.info("Button publish pressed, doing stuff!");
+				done();
+				return true;
+			}));
+		}
+		
+		
+		
+		
 		this.addButton(new Button(this.width / 2 + 5, 150, 70, 20, new StringTextComponent("Hamachi"), new Button.IPressable() {
 			@Override
 			public void onPress(Button p_onPress_1_) {
@@ -102,7 +136,7 @@ public class SyncPublishGui extends ShareToLanScreen {
 		super.render(pMatrixStack, pMouseX, pMouseY, pPartialTicks);
     }
 	
-	void setHamachi() {
+	boolean setHamachi() {
 		String ip;
 		try {
 			ip = SaveSync.getHamachiIP();
@@ -110,21 +144,25 @@ public class SyncPublishGui extends ShareToLanScreen {
 			SaveSync.LOGGER.error(e);
 			ip = e.getMessage();
 		}
-		if(ip == null) {
+		boolean re = ip == null;
+		if(re) {
 			ip = "failed to get";
 		}
 		txtIpAddress.setValue(ip);
+		return !re;
 	}
 	
-	void setExternal() {
+	boolean setExternal() {
 		try {
 			String ip = SaveSync.getExternalIp();
 			txtIpAddress.setValue(ip);
+			return true;
 		} catch (IOException | HttpError e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			SaveSync.LOGGER.error("Could not get external IP");
 			txtIpAddress.setValue(":error:");
+			return false;
 		}
 	}
 	
@@ -138,24 +176,24 @@ public class SyncPublishGui extends ShareToLanScreen {
 		}
 		if(addr == null || addr.isLoopbackAddress()) {
 			txtIpAddress.setFocus(true);
-			txtIpAddress.setTextColor(Color.red.getRGB());
+			txtIpAddress.setTextColor(0xff0000);
 			return;
 		}
 
         this.minecraft.setScreen((Screen)null);
 
 
-        int port = 25564;
+        int port = HTTPUtil.getAvailablePort();
         boolean success = this.minecraft.getSingleplayerServer().publishServer(
-        		GameType.byName((String)getProperty("gameMode")), 
-        		(boolean)getProperty("allowCheats"), port);
+        		GameType.byName((String)getProperty("gameModeName")), 
+        		(boolean)getProperty("commands"), port);
         
 
         ITextComponent itextcomponent;
         if(success) {
-        	itextcomponent = new StringTextComponent("Successfully published server");
+        	itextcomponent = new StringTextComponent("Successfully published server on port " + port);
         } else {
-        	itextcomponent = new StringTextComponent("Failed to publish server");
+        	itextcomponent = new StringTextComponent("Failed to publish server").withStyle(Style.EMPTY.withColor(Color.fromRgb(0xff0000)));
         }
         this.minecraft.gui.getChat().addMessage(itextcomponent);
         

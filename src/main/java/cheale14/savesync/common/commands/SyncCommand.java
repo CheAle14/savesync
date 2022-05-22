@@ -10,6 +10,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import cheale14.savesync.SaveSync;
+import cheale14.savesync.common.ServerEnvironment;
 import cheale14.savesync.common.SyncSave;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
@@ -35,7 +36,11 @@ public class SyncCommand {
 			)
 			.executes((ctx) -> {return syncRegister(ctx.getSource(), "main", SaveSync.CONFIG.DefaultRepository.get());})
 			)
+		.then(Commands.literal("publish").executes((ctx) -> {
+			return syncPublish(ctx.getSource());
+			}))
 		);
+
 	}
 	
 	private static int syncRegister(CommandSource src, String branch, String repository) throws CommandSyntaxException {
@@ -51,5 +56,15 @@ public class SyncCommand {
 			src.sendFailure(new StringTextComponent("Failed to write sync file."));
 		}
 		return 0;
+	}
+	
+	private static int syncPublish(CommandSource src) {
+		ServerEnvironment en = (ServerEnvironment)SaveSync.PROXY;
+		boolean v = en.PublishFromJson(src.getServer());
+		if(v)
+			src.sendSuccess(new StringTextComponent("Published to MLAPI"), true);
+		else
+			src.sendFailure(new StringTextComponent("Failed to publish to MLAPI, see console for errors."));
+		return v ? 0 : 1;
 	}
 }

@@ -33,5 +33,4 @@ public interface Environment {
 	public SyncSave GetDefaultSave();
 	
 	public void OnServerStopped(MinecraftServer server) throws NoSuchFieldException, IllegalAccessException, GitAPIException, URISyntaxException, IOException;
-
 }

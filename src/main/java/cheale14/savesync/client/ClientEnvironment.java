@@ -49,7 +49,7 @@ public class ClientEnvironment implements Environment {
 			
 			if(gui instanceof SyncReplaceGuiMP) return;
 			
-			SyncReplaceGuiMP mp = new SyncReplaceGuiMP(gui);
+			SyncReplaceGuiMP mp = new SyncReplaceGuiMP(new MainMenuScreen());
 			gui.getMinecraft().setScreen(mp);
 		} else if(gui instanceof MainMenuScreen) {
 			if(toUpload != null) {

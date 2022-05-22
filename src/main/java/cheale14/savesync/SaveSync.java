@@ -334,7 +334,14 @@ public class SaveSync
 					if(handler != null)
 						handler.OnClose(errorCode, reason);
 					
-					
+					LOGGER.info("WS disconnected!");
+					try {
+						Thread.sleep(2500);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					LOGGER.info("WS Attenpting reconnect");
+					websocket.reconnect();
 				}
 				@Override
 				public void OnError(Exception error) {
