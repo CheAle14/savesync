@@ -29,6 +29,7 @@ import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
 import net.minecraftforge.fml.event.server.FMLServerStoppedEvent;
 import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.server.ServerLifecycleHooks;
 import net.querz.nbt.io.NBTUtil;
 import net.querz.nbt.io.NamedTag;
 import net.querz.nbt.tag.CompoundTag;
@@ -335,13 +336,17 @@ public class SaveSync
 						handler.OnClose(errorCode, reason);
 					
 					LOGGER.info("WS disconnected!");
-					try {
-						Thread.sleep(2500);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
+					
+					MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
+					if(s != null) {
+						s.addTickable(new Runnable() {
+							@Override
+							public void run() {
+								LOGGER.info("Scheudling WS reconnect");
+								websocket.reconnect();
+							}
+						});
 					}
-					LOGGER.info("WS Attenpting reconnect");
-					websocket.reconnect();
 				}
 				@Override
 				public void OnError(Exception error) {
