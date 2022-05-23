@@ -52,6 +52,7 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 				if(!(wid instanceof Button)) continue;
 				Button btn = (Button)wid;
 				String text = GuiUtils.getWidgetText(btn);
+				SaveSync.LOGGER.info("[IGM]: " + text + "; (x=" + btn.x + ", y=" + btn.y + "), w=" + btn.getWidth() + ", h=" + btn.getHeight());
 				if(text.equals("menu.returnToMenu") && this.minecraft.isLocalServer()) {
 					close = btn;
 				} else if(text.equals("menu.shareToLan")) {

@@ -286,8 +286,10 @@ public class SaveSync
 		if(_field == null) {
 			for(Field f : DimensionSavedDataManager.class.getDeclaredFields()) {
 				SaveSync.LOGGER.info("DATA: " + f.getName() + ": " + f.getType().getName());
+				if(f.getType().getName().equals(File.class.getName())) {
+					_field = f;
+				}
 			}
-			_field = DimensionSavedDataManager.class.getDeclaredField("dataFolder");
 			_field.setAccessible(true);
 		}
 		return ((File) _field.get(savedData)).getParentFile();

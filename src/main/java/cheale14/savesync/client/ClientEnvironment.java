@@ -52,6 +52,7 @@ public class ClientEnvironment implements Environment {
 			SyncReplaceGuiMP mp = new SyncReplaceGuiMP(new MainMenuScreen());
 			gui.getMinecraft().setScreen(mp);
 		} else if(gui instanceof MainMenuScreen) {
+			didSync = false;
 			if(toUpload != null) {
 				File temp = toUpload;
 				toUpload = null;
@@ -80,10 +81,7 @@ public class ClientEnvironment implements Environment {
 		}
 		
 		logger.info("DidSync: " + didSync);
-		if(didSync) {
-			// We have just come from the syncing screen, so proceed as normal.
-			didSync = false;
-		} else {
+		if(!didSync) {
 			// We have not synced, so need to do so.
 			didSync = true;
 			logger.info("Not synced, opening progress GUI to sync..");

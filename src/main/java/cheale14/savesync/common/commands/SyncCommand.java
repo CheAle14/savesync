@@ -59,6 +59,10 @@ public class SyncCommand {
 	}
 	
 	private static int syncPublish(CommandSource src) {
+		if(!src.getServer().isDedicatedServer()) {
+			src.sendFailure(new StringTextComponent("This command is only available on dedicated servers. Use the Open to Lan button."));
+			return 2;
+		}
 		ServerEnvironment en = (ServerEnvironment)SaveSync.PROXY;
 		boolean v = en.PublishFromJson(src.getServer());
 		if(v)
