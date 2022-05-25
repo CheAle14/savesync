@@ -48,6 +48,7 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 		if(this.minecraft.hasSingleplayerServer()) {
 			Button close = null;
 			Button shareLan = null;
+			int optionsY = 5;
 			for(Widget wid : this.buttons) {
 				if(!(wid instanceof Button)) continue;
 				Button btn = (Button)wid;
@@ -57,6 +58,8 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 					close = btn;
 				} else if(text.equals("menu.shareToLan")) {
 					shareLan = btn;
+				} else if(text.equals("menu.options")) {
+					optionsY = btn.y;
 				}
 			}
 			File w = this.getWorldFolder();
@@ -67,10 +70,15 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 			if(shareLan != null) {
 				this.removeButton(shareLan);
 				
-				this.addButton(new SyncReplaceButton(shareLan, new StringTextComponent("Publish to MLAPI"), (x) -> {
+				SyncReplaceButton newLan = new SyncReplaceButton(shareLan, new StringTextComponent("Publish to MLAPI"), (x) -> {
 					this.minecraft.setScreen(new SyncPublishGui(this));
 					return true;
-				}));
+				});
+				
+				newLan.y = optionsY;
+				
+				this.addButton(newLan);
+				
 			}
 		}
 	}

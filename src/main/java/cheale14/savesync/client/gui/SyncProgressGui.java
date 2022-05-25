@@ -56,7 +56,7 @@ public class SyncProgressGui extends Screen {
 	@Override
 	public void init() {
 		
-		cancelButton = new Button(1, 1, 100, 25, new StringTextComponent("Cancel " + (Type.Pull ? "Download" : "Upload")), new Button.IPressable() {
+		cancelButton = new Button(5, 10, 100, 20, new StringTextComponent("Cancel " + (Type.Pull ? "Download" : "Upload")), new Button.IPressable() {
 			@Override
 			public void onPress(Button button) {
 				button.active = false;
@@ -67,7 +67,7 @@ public class SyncProgressGui extends Screen {
 		});
 		this.addButton(cancelButton);
 		
-		doneButton = new Button(cancelButton.getWidth() + 5, 1, 100, 25, new StringTextComponent("Close"), new Button.IPressable() {	
+		doneButton = new Button(cancelButton.getWidth() + 5, 10, 100, 20, new StringTextComponent("Close"), new Button.IPressable() {	
 			@Override
 			public void onPress(Button btn) {
 				SaveSync.LOGGER.info("Closing!");
@@ -78,7 +78,7 @@ public class SyncProgressGui extends Screen {
 
 		doneButton.visible = false;
 		this.addButton(doneButton);
-		log = new SyncTextList(this, this.width - 30, 5, this.height - 5);
+		log = new SyncTextList(this, this.width, this.height, 35, this.height - 35, this.font.lineHeight + 2);
 		log.setRenderBackground(false);
 		this.addWidget(log);
 		if(threads == null) {
