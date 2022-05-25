@@ -339,7 +339,7 @@ public class SaveSync
 					
 					LOGGER.info("WS disconnected!");
 					
-					MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
+					/*MinecraftServer s = ServerLifecycleHooks.getCurrentServer();
 					if(s != null) {
 						s.addTickable(new Runnable() {
 							@Override
@@ -348,7 +348,7 @@ public class SaveSync
 								websocket.reconnect();
 							}
 						});
-					}
+					}*/
 				}
 				@Override
 				public void OnError(Exception error) {
