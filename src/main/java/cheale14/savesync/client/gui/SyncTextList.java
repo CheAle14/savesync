@@ -1,6 +1,7 @@
 package cheale14.savesync.client.gui;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.AbstractGui;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.widget.list.ExtendedList;
 import net.minecraft.client.renderer.BufferBuilder;
@@ -20,8 +21,9 @@ import java.util.List;
 
 public class SyncTextList extends ExtendedList<SyncTextList.TextEntry> 
 {
-	public SyncTextList(SyncProgressGui gui, int listWidth, int top, int bottom)  {
-        super(gui.getMinecraft(), listWidth, gui.height, top, bottom, gui.getFont().lineHeight + 8);
+	public SyncTextList(SyncProgressGui gui, int width, int height, int top, int bottom, int itemHeight)  {
+        super(gui.getMinecraft(), width, height, top, bottom, itemHeight);
+        this.setRenderTopAndBottom(false);
 		parent = gui;
 	}
 	private SyncProgressGui parent;
@@ -32,6 +34,10 @@ public class SyncTextList extends ExtendedList<SyncTextList.TextEntry>
 		this.centerScrollOn(e);
 	}
 	
+	@Override
+	public int getRowWidth() {
+		return this.width - 15;
+	}
 
 	public class TextEntry extends ExtendedList.AbstractListEntry<TextEntry> {
 		private String text;
@@ -43,9 +49,10 @@ public class SyncTextList extends ExtendedList<SyncTextList.TextEntry>
 		@Override
 		public void render(MatrixStack mStack, int entryIdx, int top, int left, int entryWidth, 
 				int entryHeight, int mouseX, int mouseY, boolean p_194999_5_, float partialTicks) {
-			ITextComponent t = new StringTextComponent(net.minecraft.util.StringUtils.stripColor(text));
+			//ITextComponent t = new StringTextComponent(net.minecraft.util.StringUtils.stripColor(text));
 			FontRenderer font = this.parent.getFont();
-            font.draw(mStack, LanguageMap.getInstance().getVisualOrder(ITextProperties.composite(font.substrByWidth(t,    this.parent.width))), left + 3, top + 2, 0xFFFFFF);
+			AbstractGui.drawString(mStack, font, text, left, top, 10526880);
+            //font.draw(mStack, LanguageMap.getInstance().getVisualOrder(ITextProperties.composite(font.substrByWidth(t,    this.parent.width))), left + 3, top + 2, 0xFFFFFF);
 		}
 		
 	}
