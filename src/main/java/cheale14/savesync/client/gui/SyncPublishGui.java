@@ -51,15 +51,39 @@ public class SyncPublishGui extends ShareToLanScreen {
 		obj.addProperty("game", "minecraft");
 		return obj;
 	}
+
+	Field gamemodeField;
+	Field commandsField;
 	
-	public Object getProperty(String name) {
+	boolean getCommands() {
+		if(commandsField == null); {
+			for(Field field : ShareToLanScreen.class.getDeclaredFields()) {
+				if(field.getType().getName().equals(boolean.class.getTypeName())) {
+					commandsField = field;
+					break;
+				}
+			}
+		}
 		try {
-			Field f = ShareToLanScreen.class.getDeclaredField(name);
-			f.setAccessible(true);
-			return f.get(this);
-		} catch (Exception e) {
-			SaveSync.LOGGER.error(e);
-			return null;
+			return commandsField.getBoolean(this);
+		} catch (IllegalArgumentException | IllegalAccessException e) {
+			return true;
+		}
+	}
+	
+	String getGameMode() {
+		if(gamemodeField == null); {
+			for(Field field : ShareToLanScreen.class.getDeclaredFields()) {
+				if(field.getType().getName().equals(String.class.getTypeName())) {
+					gamemodeField = field;
+					break;
+				}
+			}
+		}
+		try {
+			return (String)gamemodeField.get(this);
+		} catch (IllegalArgumentException | IllegalAccessException e) {
+			return "survival";
 		}
 	}
 	
@@ -185,8 +209,8 @@ public class SyncPublishGui extends ShareToLanScreen {
 
         int port = HTTPUtil.getAvailablePort();
         boolean success = this.minecraft.getSingleplayerServer().publishServer(
-        		GameType.byName((String)getProperty("gameModeName")), 
-        		(boolean)getProperty("commands"), port);
+        		GameType.byName(getGameMode()), 
+        		getCommands(), port);
         
 
         ITextComponent itextcomponent;

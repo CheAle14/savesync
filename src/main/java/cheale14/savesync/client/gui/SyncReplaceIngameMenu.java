@@ -49,6 +49,7 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 			Button close = null;
 			Button shareLan = null;
 			int optionsY = 5;
+			int modOptionsY = -1;
 			for(Widget wid : this.buttons) {
 				if(!(wid instanceof Button)) continue;
 				Button btn = (Button)wid;
@@ -60,6 +61,8 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 					shareLan = btn;
 				} else if(text.equals("menu.options")) {
 					optionsY = btn.y;
+				} else if(text.equals("menu.modoption")) {
+					modOptionsY = btn.y;
 				}
 			}
 			File w = this.getWorldFolder();
@@ -75,7 +78,11 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 					return true;
 				});
 				
-				newLan.y = optionsY;
+				if(modOptionsY > -1) {
+					newLan.y = modOptionsY - 24;
+				} else {
+					newLan.y = optionsY;
+				}
 				
 				this.addButton(newLan);
 				
