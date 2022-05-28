@@ -176,6 +176,15 @@ public class SaveSync
     public void onServerStopped(FMLServerStoppedEvent event) {
     	LOGGER.info("Server stopped");
     	try {
+    		if(websocket != null) {
+    			LOGGER.info("Shutting down websocket thread!");
+    			websocket.closeBlocking();
+    			websocket = null;
+    		}
+    	} catch(Exception e) {
+    		LOGGER.error(e);
+    	}
+    	try {
         	PROXY.OnServerStopped(event.getServer());
     	} catch(Exception e) {
     		e.printStackTrace();
