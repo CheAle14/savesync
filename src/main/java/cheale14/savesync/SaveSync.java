@@ -41,6 +41,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.stream.JsonReader;
 import com.mojang.brigadier.CommandDispatcher;
 
 import cheale14.savesync.client.ClientEnvironment;
@@ -55,14 +56,17 @@ import cheale14.savesync.common.commands.SyncCommand;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.NetworkInterface;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.KeyManagementException;
@@ -284,8 +288,17 @@ public class SaveSync
     		url += "client=true&";
     	}
     	url += "game=minecraft&";
-    	
-    	url += "mode=" + SaveSync.CONFIG.GameMode.get();
+    	String mode;
+    	try {
+    		mode = SaveSync.GetModpackName();
+		} catch (FileNotFoundException e) {
+			mode = CONFIG.GameMode.get();
+		}
+		try {
+			url += "mode=" + URLEncoder.encode(mode, "utf-8");
+		} catch (UnsupportedEncodingException e) {
+			url += "mode=modded";
+		}
     	
     	return url;
     }
@@ -378,6 +391,24 @@ public class SaveSync
     public static boolean HasApiKey() {
     	String g = SaveSync.CONFIG.ApiKey.get();
     	return g != null && g != "none";
+    }
+    
+    public static String GetModpackName() throws FileNotFoundException {
+    	File curseFile = new File("./manifest.json");
+    	if(curseFile.exists()) {
+    		Gson g = new Gson();
+    		JsonReader json = new JsonReader(new FileReader(curseFile));
+    		CurseManifest man = g.fromJson(json, CurseManifest.class);
+    		return man.name;
+    	} else {
+    		LOGGER.info("Could not find curse file at " + curseFile.getAbsolutePath());
+    	}
+    	
+    	return CONFIG.GameMode.get();
+    }
+    
+    class CurseManifest {
+    	public String name;
     }
     
 
