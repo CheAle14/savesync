@@ -13,7 +13,7 @@ import com.mojang.blaze3d.matrix.MatrixStack;
 
 import cheale14.savesync.SaveSync;
 import cheale14.savesync.client.ClientEnvironment;
-import cheale14.savesync.common.SyncSave;
+import cheale14.savesync.common.SaveInfo;
 import cheale14.savesync.common.SyncThread;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -189,7 +189,7 @@ public class SyncProgressGui extends Screen {
 		if(this.Type == SyncType.DOWNLOAD_ALL || this.Type == SyncType.UPLOAD_ALL) {
 			String defaultRepo = SaveSync.CONFIG.DefaultRepository.get();
 			boolean any = false;
-			for(SyncSave save : SyncSave.LoadAll(dir)) {
+			for(SaveInfo save : SaveInfo.LoadAll(dir)) {
 				any = true;
 				SyncThread t = new SyncThread(this, save);
 				threads.add(t);
@@ -197,7 +197,7 @@ public class SyncProgressGui extends Screen {
 			}
 			if(!any) {
 				if(this.Type == SyncType.DOWNLOAD_ALL) {
-					SyncSave s = SaveSync.PROXY.GetDefaultSave();
+					SaveInfo s = SaveSync.PROXY.GetDefaultSave();
 					if(s != null) {
 						SyncThread t = new SyncThread(this, s);
 						threads.add(t);
@@ -206,7 +206,7 @@ public class SyncProgressGui extends Screen {
 				}
 			}
 		} else {
-			SyncThread t= new SyncThread(this, SyncSave.Load(dir));
+			SyncThread t= new SyncThread(this, SaveInfo.Load(dir));
 			threads.add(t);
 			t.start();
 		}

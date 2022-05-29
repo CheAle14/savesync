@@ -6,7 +6,7 @@ import java.lang.reflect.Field;
 
 import cheale14.savesync.SaveSync;
 import cheale14.savesync.client.gui.SyncProgressGui.SyncType;
-import cheale14.savesync.common.SyncSave;
+import cheale14.savesync.common.SaveInfo;
 import net.minecraft.client.gui.screen.DirtMessageScreen;
 import net.minecraft.client.gui.screen.IngameMenuScreen;
 import net.minecraft.client.gui.screen.MainMenuScreen;
@@ -66,7 +66,7 @@ public class SyncReplaceIngameMenu extends IngameMenuScreen {
 				}
 			}
 			File w = this.getWorldFolder();
-			if(close != null && SyncSave.IsSyncedDirectory(w)) {
+			if(close != null && SaveInfo.IsSyncedDirectory(w)) {
 				this.removeButton(close);
 				this.addButton(new SyncReplaceButton(close, new StringTextComponent("Close & Sync")));
 			}

@@ -11,7 +11,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import cheale14.savesync.SaveSync;
 import cheale14.savesync.common.ServerEnvironment;
-import cheale14.savesync.common.SyncSave;
+import cheale14.savesync.common.SaveInfo;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.command.arguments.MessageArgument;
@@ -47,7 +47,7 @@ public class SyncCommand {
 		File file;
 		try {
 			file = SaveSync.getWorldFolder(src.getServer().overworld());
-			SyncSave save = new SyncSave(repository, branch, file);
+			SaveInfo save = new SaveInfo(repository, branch, file);
 			save.WriteTo(file);
 			src.sendSuccess(new StringTextComponent("Now syncing " + file.getAbsolutePath()), true);
 		} catch (NoSuchFieldException | IllegalAccessException | IOException e) {

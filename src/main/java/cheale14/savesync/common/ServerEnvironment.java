@@ -27,24 +27,26 @@ import net.minecraftforge.fml.server.ServerLifecycleHooks;
 public class ServerEnvironment implements Environment {
 
 	@Override
-	public SyncSave GetDefaultSave() {
+	public SaveInfo GetDefaultSave() {
 		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
 		File file = server.getServerDirectory();
 		File world = new File(file, "world");
 		try {
-			return SyncSave.Load(world);
+			return SaveInfo.Load(world);
 		} catch (FileNotFoundException e) {
-			return new SyncSave(SaveSync.CONFIG.DefaultRepository.get(), "main", world);
+			return new SaveInfo(SaveSync.CONFIG.DefaultRepository.get(), "main", world);
 		}
 	}
 
 	@Override
 	public void OnServerStopped(MinecraftServer server) throws NoSuchFieldException, IllegalAccessException, GitAPIException, URISyntaxException, IOException {
-		SyncSave s = this.GetDefaultSave();
+		SaveInfo s = this.GetDefaultSave();
 		if(s != null) {
+			long time = server.overworld().getDayTime();
+			long numDays = time % 24000;
 			s.Upload(new Monitor((msg) -> {
 				logger.info("[upload] " + msg);
-			}));
+			}), " on day " + numDays);
 		}
 	}
 	

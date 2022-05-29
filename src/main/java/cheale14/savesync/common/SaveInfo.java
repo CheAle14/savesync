@@ -33,14 +33,14 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import cheale14.savesync.SaveSync;
 
-public class SyncSave {
+public class SaveInfo {
 	public static final String SYNCFILE_NAME = "SYNC.txt";
 	
 	private String _repository;
 	private String _branch;
 	private File _rootDir;
 	
-	public SyncSave(String repository, String branch, File rootDir) {
+	public SaveInfo(String repository, String branch, File rootDir) {
 		_repository = repository;
 		_branch = branch;
 		_rootDir = rootDir;
@@ -62,8 +62,6 @@ public class SyncSave {
 	private UsernamePasswordCredentialsProvider auth() {
     	return new UsernamePasswordCredentialsProvider(SaveSync.CONFIG.ApiKey.get(), "");
     }
-	
-	
 	
 	void Clone(ProgressMonitor monitor) throws IOException, InvalidRefNameException, IllegalStateException, GitAPIException, URISyntaxException {
 		Logger logger = LogManager.getLogger("SyncClone");
@@ -136,7 +134,7 @@ public class SyncSave {
 			logger.info("Attempting to rename " + _rootDir + " -> " + newWorld);
 			int moved = IOHelper.Move(_rootDir, newWorld);
 			logger.info("Renamed, " + moved + " files moved");
-			SyncSave newSave = SyncSave.Load(newWorld);
+			SaveInfo newSave = SaveInfo.Load(newWorld);
 			newSave.WriteTo(newWorld);
 			
 			// Checkout new branch
@@ -146,7 +144,7 @@ public class SyncSave {
 			git.checkout().setName(newBranch).call();
 			git.close();
 			
-			newSave.Upload(monitor);
+			newSave.Upload(monitor, "after conflict");
 			logger.info("Pushed conflicts to their own branch.");
 			logger.info("We can now attempt to make sure the old folder is deleted and pull it again");
 			_rootDir.delete();
@@ -155,7 +153,7 @@ public class SyncSave {
 		}
 	}
 	
-	public void Upload(ProgressMonitor monitor) throws GitAPIException, URISyntaxException, IOException {
+	public void Upload(ProgressMonitor monitor, String additionalMessage) throws GitAPIException, URISyntaxException, IOException {
 		Logger logger = LogManager.getLogger("SyncUpload");
     	Git git = null;
     	if(_rootDir.listFiles(new FilenameFilter() {
@@ -200,7 +198,7 @@ public class SyncSave {
     	}
     	monitor.endTask();
     	git.add().addFilepattern(".").call();
-    	git.commit().setSign(false).setMessage("Automatically syncing changes").call();
+    	git.commit().setSign(false).setMessage("Automatically syncing changes " + additionalMessage).call();
     	PushCommand push = git.push();
     	push.setCredentialsProvider(auth());
 		push.setProgressMonitor(monitor);
@@ -214,21 +212,21 @@ public class SyncSave {
 		return new File(directory, SYNCFILE_NAME).exists();
 	}
 	
-	public static SyncSave Load(File syncFile) throws FileNotFoundException {
+	public static SaveInfo Load(File syncFile) throws FileNotFoundException {
 		if(syncFile.isDirectory()) {
 			syncFile = new File(syncFile, SYNCFILE_NAME);
 		}
 		List<String> lines = IOHelper.ReadAllLines(syncFile);
-		return new SyncSave(lines.get(1), lines.get(0), syncFile.getParentFile());
+		return new SaveInfo(lines.get(1), lines.get(0), syncFile.getParentFile());
 	}
 	
-	public static List<SyncSave> LoadAll(File saveDirectory) throws FileNotFoundException {
-		List<SyncSave> list = new ArrayList<SyncSave>();
+	public static List<SaveInfo> LoadAll(File saveDirectory) throws FileNotFoundException {
+		List<SaveInfo> list = new ArrayList<SaveInfo>();
 		for(File dir : saveDirectory.listFiles()) {
 			if(dir.isDirectory()) {
 				File syncFile = new File(dir, SYNCFILE_NAME);
 				if(syncFile.exists()) {
-					list.add(SyncSave.Load(syncFile));
+					list.add(SaveInfo.Load(syncFile));
 				}
 			}
 		}

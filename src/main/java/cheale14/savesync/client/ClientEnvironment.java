@@ -12,7 +12,7 @@ import cheale14.savesync.client.gui.SyncProgressGui;
 import cheale14.savesync.client.gui.SyncProgressGui.SyncType;
 import cheale14.savesync.client.gui.SyncReplaceGuiMP;
 import cheale14.savesync.client.gui.SyncReplaceIngameMenu;
-import cheale14.savesync.common.SyncSave;
+import cheale14.savesync.common.SaveInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.CreateWorldScreen;
 import net.minecraft.client.gui.screen.IngameMenuScreen;
@@ -94,19 +94,19 @@ public class ClientEnvironment implements Environment {
 	
 
 	@Override
-    public SyncSave GetDefaultSave() {
+    public SaveInfo GetDefaultSave() {
     	String repo = SaveSync.CONFIG.DefaultRepository.get();
     	if(repo == null || repo == "none") return null;
     	File saveDir = new File(Minecraft.getInstance().gameDirectory, "saves");
     	File worldDir = new File(saveDir, "default");
-    	return new SyncSave(repo, "main", worldDir);
+    	return new SaveInfo(repo, "main", worldDir);
     }
 
 	File toUpload = null;
 	@Override
 	public void OnServerStopped(MinecraftServer server) throws NoSuchFieldException, IllegalAccessException {
     	File f = SaveSync.getWorldFolder(server.overworld());
-    	if(SyncSave.IsSyncedDirectory(f)) {
+    	if(SaveInfo.IsSyncedDirectory(f)) {
     		logger.info("Integrated server stopped, directory is being synced - scheudling upload.");
     		toUpload = f;
     	}

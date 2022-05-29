@@ -15,11 +15,11 @@ public class SyncThread extends Thread {
 	
 	private SyncProgressGui Gui;
 	private SyncType Type;
-	private SyncSave save;
+	private SaveInfo save;
 	private boolean didError = false;
 	
 	boolean doCancel = false;
-	public SyncThread(SyncProgressGui gui, SyncSave _save) {
+	public SyncThread(SyncProgressGui gui, SaveInfo _save) {
 		Gui = gui;
 		Type = gui.Type;
 		save = _save;
@@ -51,7 +51,7 @@ public class SyncThread extends Thread {
 			} else {
 				save.Upload(new  Monitor((msg) -> {
 					log(msg);
-				}));
+				}), "");
 			}
 		} catch(Exception e) {
 			log(e.toString());

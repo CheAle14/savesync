@@ -49,7 +49,7 @@ import cheale14.savesync.client.GithubUser;
 import cheale14.savesync.common.IWebSocketHandler;
 import cheale14.savesync.common.Monitor;
 import cheale14.savesync.common.ServerEnvironment;
-import cheale14.savesync.common.SyncSave;
+import cheale14.savesync.common.SaveInfo;
 import cheale14.savesync.common.WSClient;
 import cheale14.savesync.common.WSPacket;
 import cheale14.savesync.common.commands.SyncCommand;
@@ -144,11 +144,11 @@ public class SaveSync
 			return;
 		}
 		
-		SyncSave s;
+		SaveInfo s;
 		try {
-			s = SyncSave.Load(worldDir);
+			s = SaveInfo.Load(worldDir);
 		} catch (FileNotFoundException e) {
-			s = new SyncSave(CONFIG.DefaultRepository.get(), "main", worldDir);
+			s = new SaveInfo(CONFIG.DefaultRepository.get(), "main", worldDir);
 		}
 		
 		try {
